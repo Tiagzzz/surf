@@ -1,0 +1,32 @@
+{
+  "source_path": "/Users/tiagoreimann/surf/docs/handoff_2026-04-30_gsd_planning/06_code_buckets_spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "06 — Code buckets spec (10-bucket organization)",
+  "summary": "Specifies the 10-bucket code organization for the Surf app: 3 infrastructure buckets plus 7 page-aligned Streamlit buckets, with sub-folder pipeline conventions and cross-bucket dependencies.",
+  "scope": [
+    "app/ folder layout",
+    "10-bucket organization",
+    "brain/",
+    "db/",
+    "ml/",
+    "signup/",
+    "my_classes/",
+    "class_/",
+    "mock_take/",
+    "mock_review/",
+    "dashboard/",
+    "settings/",
+    "pipeline naming convention",
+    "cross-bucket dependencies"
+  ],
+  "cross_refs": [
+    "~/CS/CS_Obsidian/CS_EN_VF/setup/code_buckets.md",
+    "app/brain/ingestion/pdf_to_md_v3.py",
+    "app/brain/claude_client/claude_client.py",
+    "app/my_classes/factsheet_clean/factsheet_renderer.py"
+  ],
+  "locked": false,
+  "precedence": null
+}

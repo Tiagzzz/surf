@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/tiagoreimann/surf/docs/handoff_2026-04-30_gsd_planning/05_team_task_briefs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "05 — Team task briefs (2026-04-29)",
+  "summary": "Provisional team task split across 5 people and 4 tracks (skeleton/AI, database, ML, video) with per-track scopes, deliverables, and coordination decisions.",
+  "scope": ["team task split", "task briefs", "database track", "machine learning track", "submission video track", "skeleton/AI integration track", "coordination decisions", "Contribution Matrix"],
+  "cross_refs": [
+    "~/CS/CS_Obsidian/CS_EN_VF/setup/team_tasks/",
+    "Database_creation.md",
+    "ML_training_and_build.md",
+    "Video_Planning.md",
+    "Task_Split_2026-04-29.md",
+    "https://github.com/Tiagzzz/surf"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

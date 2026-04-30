@@ -38,3 +38,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local planning handoff snapshots (not committed)
+docs/handoff_*/

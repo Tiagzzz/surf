@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/tiagoreimann/surf/docs/handoff_2026-04-30_gsd_planning/00_README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Surf — GSD Planning Handoff (snapshot 2026-04-30)",
+  "summary": "Index/README for an 11-doc handoff bundle snapshotting Surf's state to seed a fresh GSD planning session.",
+  "scope": ["Surf project", "GSD planning handoff", "documentation index", "reading order", "snapshot 2026-04-30"],
+  "cross_refs": [
+    "01_idea_v1_state.md",
+    "02_decision_log_v0_to_v1.md",
+    "03_brief_and_grading.md",
+    "04_lectures_oracle.md",
+    "05_team_task_briefs.md",
+    "06_code_buckets_spec.md",
+    "07_repo_state.md",
+    "08_figjam_references.md",
+    "09_open_tbds.md",
+    "10_communication_rules.md",
+    "~/surf/docs/idea_v1.md",
+    "~/surf/CLAUDE.md",
+    "~/CS/CS_Obsidian/CS_EN_VF/work_log/"
+  ],
+  "locked": false,
+  "precedence": null
+}

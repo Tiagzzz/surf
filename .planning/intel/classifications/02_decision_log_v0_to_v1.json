@@ -1,0 +1,36 @@
+{
+  "source_path": "/Users/tiagoreimann/surf/docs/handoff_2026-04-30_gsd_planning/02_decision_log_v0_to_v1.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "02 — Decision Log 2026-04-29 — Surf (delta v0 → v1)",
+  "summary": "Decision log capturing v0→v1 deltas: architectural fixes, compliance fixes, ML methodology lock, SQLite alignment, and smaller decisions with rejected alternatives.",
+  "scope": [
+    "question generation timing",
+    "mock pool fallback",
+    "PDF to MD page delimiters",
+    "Swiss grading formula",
+    "ML methodology (linear regression vs random forest)",
+    "SQLite stack alignment",
+    "P4 timer mode",
+    "P7 reset and backup behavior",
+    "Streamlit session_state usage",
+    "vault and tooling cleanup"
+  ],
+  "cross_refs": [
+    "01_idea_v1_state.md",
+    "scripts/pdf_to_md_v3.py",
+    "setup/team_tasks/ML_training_and_build.md",
+    "Database_creation.md",
+    "CLAUDE.md",
+    "09_open_tbds.md",
+    "work_log/2026-04-29.md",
+    "Assets/_archive/2026-04-28_pre-Surf-pivot/setup_old/",
+    "setup/tiago_guidelines.md",
+    "setup/briefing_pdf_md/",
+    "setup/team_tasks/"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Document is an ADR-collection (multiple decisions A1-A4, B, C, D, E, F, G with explicit Recorded/Why/Rejected structure). Marked locked=false because the document itself states 'Treat as recorded history, not as immutable. Each decision below is open for re-discussion in the GSD session' — not Accepted-status locked decisions per the strict locking rule."
+}

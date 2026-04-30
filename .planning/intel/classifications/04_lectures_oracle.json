@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/tiagoreimann/surf/docs/handoff_2026-04-30_gsd_planning/04_lectures_oracle.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "04 — Lectures (course-expectation oracle)",
+  "summary": "Reference guide for when and how to query the Lectures NotebookLM to verify course-scope alignment of techniques, libraries, and patterns.",
+  "scope": ["NotebookLM Lectures notebook", "course-alignment queries", "nlm-query usage", "course-scope verification"],
+  "cross_refs": ["Idea v1 §2", "Idea v1 §3", "Decision Log §C", "Decision Log §D"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
