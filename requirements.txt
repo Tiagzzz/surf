@@ -1,0 +1,23 @@
+# Surf — Python dependencies
+# Pinned with `>=` for now; run `pip freeze > requirements.txt` after first
+# successful install to lock exact versions for reproducibility on the grader's
+# machine before the 2026-05-14 Canvas submission.
+
+# UI
+streamlit>=1.36          # required for st.navigation() multi-page API
+
+# LLM
+anthropic>=0.40          # Claude API client
+
+# PDF ingestion
+pdfplumber>=0.11         # used by app/brain/ingestion/
+
+# Data
+pandas>=2.0
+
+# Charts (P6 Dashboard)
+plotly>=5.20             # line + bar + radar
+
+# ML (6-criteria difficulty model)
+scikit-learn>=1.4        # linear regression baseline per architecture §3.6
+numpy>=1.26
