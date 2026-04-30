@@ -3,7 +3,7 @@
 Personalized exam-prep app for HSG students. Upload your class factsheet + lecture PDFs; get auto-generated mock exams from your own course materials, ranked by ML-scored difficulty and adapted to your weak spots.
 
 - **Course:** Computer Science for Business (FCS-BWL), HSG FS 2026
-- **Team:** Tiago, Nikita, Cons, Juliette, Jojo
+- **Team:** Tiago, Nikita, Constance, Juliette, Jonas
 - **Stack:** Python · Streamlit · SQLite · Anthropic Claude API
 
 ---
