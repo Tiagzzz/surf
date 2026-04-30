@@ -1,93 +1,112 @@
-# Surf — Repo Claude Config
+# CLAUDE.md
 
-> **Auto-loaded by Claude Code at session start in `~/surf/`.** Code-focused — for day-to-day work in this repo.
-> For deep project context (full architecture, decision log, deadlines, grading, communication preferences), see the **vault `CLAUDE.md`** at `~/CS/CLAUDE.md` (and its mirror `~/CS/AGENTS.md` for Codex).
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
 ---
 
-## 0. SESSION PROTOCOL
-
-1. **Read `docs/idea_v1.md`** for the canonical project state (locked 2026-04-29; future changes land as `docs/idea_v2.md` etc.).
-2. **For grading / deadline / communication-style questions** → vault `~/CS/CLAUDE.md` is the deeper authority.
-3. **For "what changed lately?"** → check NotebookLM Idea & Progress notebook (https://notebooklm.google.com/notebook/3e02fa3d-8ce2-4a6d-9da7-ac974e32452f) for new Idea versions or Decision Log entries that may have landed since `docs/idea_v1.md` was committed.
-4. **Default posture for ambiguous requests:** reformulate and confirm before starting (per `~/CS/CS_Obsidian/CS_EN_VF/setup/tiago_guidelines.md`).
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
 ---
 
-## 1. PROJECT IDENTITY (short)
+# Surf — Project-specific instructions
 
-| Field | Value |
-|---|---|
-| Name | **Surf** — Adaptive HSG Study Companion |
-| Course | HSG FS 2026 — FCS-BWL (Computer Science for Business) |
-| Stack | Python 3.11 · Streamlit · SQLite (stdlib `sqlite3`, no ORM) · Anthropic Claude API |
-| Submission | Canvas, by **2026-05-14 23:59** (buffer 2026-05-13 — Auffahrt collision) |
-| Team | Tiago, Nikita, Cons, Juliette, Jojo |
+## Source of truth
 
-Full constraints + the 8 graded requirements: see `docs/idea_v1.md` §2 + §9.
+- **Canonical project state:** [docs/idea_v1.md](docs/idea_v1.md) (mirrors NotebookLM Idea v1, source `a815d393-1f9f-4ac1-841c-09f5c23bc285`).
+- **Deep context** (grading rubric, deadlines, full architecture, communication style): vault `~/CS/CLAUDE.md` and `~/CS/AGENTS.md` (Codex equivalent).
+- **Communication rules:** `~/CS/CS_Obsidian/CS_EN_VF/setup/tiago_guidelines.md` — non-negotiable; describes Tiago's working style. Read first.
 
----
+## Hard constraints (non-negotiable per Idea v1)
 
-## 2. CODE ORGANIZATION — 10 buckets
+- Python 3.11 + Streamlit only (no Flask, FastAPI, Django).
+- Anthropic Claude API only (no OpenAI).
+- SQLite via Python stdlib `sqlite3` — **no SQLAlchemy or any ORM** (not taught in the course).
+- **No AI-generated audio** in the submission video.
+- Submission deadline: **2026-05-14 23:59 Europe/Zurich** (buffer-upload **2026-05-13** — Auffahrt collision).
 
-Every Surf module lives in one of 10 buckets, organised one **sub-folder per pipeline**. Spec: `~/CS/CS_Obsidian/CS_EN_VF/setup/code_buckets.md`.
+## Code organization (10 buckets, one sub-folder per pipeline)
 
-| Tier | Bucket | Owns |
-|---|---|---|
-| Infra | `app/brain/` | `claude_client/`, `ingestion/`, `topbar/`, `session/`, `grading_formula/`, `routing/`, `state_helpers/` |
-| Infra | `app/db/` | `schema/`, `migrations/`, `queries_users/`, `queries_classes/`, `queries_lectures/`, `queries_pages/`, `queries_questions/`, `queries_attempts/` |
-| Infra | `app/ml/` | `training_pipeline/`, `dataset_labels/`, `model_artifact/`, `inference_per_question/`, `radar_features/` |
-| Page | `app/signup/` | P1 |
-| Page | `app/my_classes/` | P2 — includes already-shipped `factsheet_clean/` pipeline |
-| Page | `app/class_/` | P3 (`class_` with trailing `_` because `class` is a Python keyword) |
-| Page | `app/mock_take/` | P4 |
-| Page | `app/mock_review/` | P5 |
-| Page | `app/dashboard/` | P6 |
-| Page | `app/settings/` | P7 |
+`app/<bucket>/<pipeline>/`
 
-Streamlit page wrappers live in `views/` (one thin file per page; renamed from `pages/` to avoid Streamlit auto-discovery collision with `st.navigation()`).
+- **Infra:** `brain/`, `db/`, `ml/`
+- **Pages (P1–P7):** `signup/`, `my_classes/`, `class_/` (trailing `_` — `class` is a Python keyword), `mock_take/`, `mock_review/`, `dashboard/`, `settings/`
+- Streamlit page wrappers in `views/` (one thin file per page).
+- Naming: `lower_snake_case`, verb-driven (`username_save`, not `username`).
+- Full spec: `~/CS/CS_Obsidian/CS_EN_VF/setup/code_buckets.md`.
 
----
+## Already shipped — do NOT re-implement
 
-## 3. ALREADY-BUILT PIPELINES (do NOT re-implement)
+- `app/brain/claude_client/claude_client.py` — single shared Anthropic wrapper. **Every Claude call goes through this** (`from app.brain.claude_client import call_claude`). Prompt caching enabled by default.
+- `app/brain/ingestion/pdf_to_md_v3.py` — PDF → MD. (TODO: `--- PAGE N ---` marker injection per Idea v1 A3 still pending.)
+- `app/my_classes/factsheet_clean/` — system prompt + cleaner (10-line wrapper) + renderer (pure Python, no API).
 
-The factsheet-clean pipeline shipped end-to-end on 2026-04-30:
+Each script has a sibling `.md` doc — read it before extending.
 
-- **`app/brain/claude_client/claude_client.py`** — shared Anthropic API wrapper. **Every Claude call goes through this.** Prompt caching enabled by default.
-- **`app/brain/ingestion/pdf_to_md_v3.py`** — PDF → MD with `--- PAGE N ---` markers (per Idea v1 A3) [TODO: marker injection still pending — currently emits `# Page N`].
-- **`app/my_classes/factsheet_clean/`** — system prompt (`.md`) + cleaner (10-line wrapper around `claude_client`) + renderer (pure Python, JSON → student-facing MD).
-
-Each script has a sibling `.md` doc. **When extending or reusing**, read the `.md` first.
-
----
-
-## 4. CONVENTIONS
-
-### Branches & commits
-- Solo iteration: direct push to `main` is OK for small fixes
-- Anything reviewed (self or team): branch `feature/<short-name>`, push, open PR
-- Atomic commits per logical unit; commit message = imperative + body
-- All commits include `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` when Claude generated them
-
-### Imports across buckets
-- Every bucket folder is a Python package (has `__init__.py`)
-- Specialist scripts use proper package imports: `from app.brain.claude_client import call_claude`
-- The `__init__.py` in `app/brain/claude_client/` re-exports `call_claude` for clean import paths
-
-### Linting & tests
-- Ruff config in `pyproject.toml` (E/F/I rules, line-length 100, target py311)
-- Run lint: `ruff check .`
-- Run tests: `pytest -q` (smoke test in `tests/test_smoke.py`; per-module skip when optional deps missing)
-- CI workflow not yet set up — defer until ~2 days before submission
-
-### Claude API pattern
-Every Claude-backed script follows the same shape (~10 lines):
+## The standard Claude-call pattern (~10 lines)
 
 ```python
 from pathlib import Path
 from app.brain.claude_client import call_claude
 
-_SYSTEM_PROMPT = Path(__file__).with_name("<this_script>_system_prompt.md")
+_SYSTEM_PROMPT = Path(__file__).with_name("<script>_system_prompt.md")
 
 def <verb>_<noun>(input_text: str) -> dict:
     return call_claude(
@@ -97,36 +116,18 @@ def <verb>_<noun>(input_text: str) -> dict:
     )
 ```
 
-The system prompt lives as a `.md` file next to the script — editable without touching Python. Prompt caching is enabled by default in `call_claude` (5-min TTL on the system block).
+System prompts live as sibling `.md` files — editable without touching Python.
 
----
+## Test + lint
 
-## 5. FILE LOCATIONS — quick lookup
+```bash
+pytest -q          # smoke test in tests/test_smoke.py (skips on missing optional deps)
+ruff check .       # config in pyproject.toml (E/F/I, line 100, py311)
+```
 
-| Looking for… | Path |
-|---|---|
-| Canonical project state | `docs/idea_v1.md` |
-| Code-bucket spec | `~/CS/CS_Obsidian/CS_EN_VF/setup/code_buckets.md` |
-| Communication rules | `~/CS/CS_Obsidian/CS_EN_VF/setup/tiago_guidelines.md` |
-| Vault CLAUDE.md (deep context) | `~/CS/CLAUDE.md` |
-| Vault AGENTS.md (Codex equiv) | `~/CS/AGENTS.md` |
-| Session work logs | `~/CS/CS_Obsidian/CS_EN_VF/work_log/` |
-| Test factsheets | `~/CS/Factsheets/FS_Flagged/` |
-| Cleaned factsheet outputs | `~/CS/Factsheets/FS_Cleaned/` |
+## Branch + commit
 
----
-
-## 6. RULES CLAUDE MUST FOLLOW (repo-scoped)
-
-1. **Read `docs/idea_v1.md` before claiming anything is "locked"** — only what's in v1 (or in a later Decision Log) is locked. Everything else is open.
-2. **Don't re-implement shipped pipelines** — extend `claude_client`, the factsheet cleaner/renderer, and `pdf_to_md_v3.py` rather than building parallel versions.
-3. **System prompts are `.md` files next to their script** — never inline a multi-line system prompt in Python.
-4. **`from app.brain.claude_client import call_claude`** — never re-instantiate `Anthropic()` directly in specialist scripts.
-5. **No SQLAlchemy or other ORMs** — stdlib `sqlite3` only (Idea v1 §2 — SQLAlchemy not taught in the course).
-6. **No AI-generated audio** in the submission video (Idea v1 §2).
-7. **Cite course slides** when applying course-aligned methods (e.g. `[6. Machine Learning, slide 77]`) — graders will spot non-course methods otherwise.
-8. **Honesty charter:** no sycophancy, quantify risks, name rejected alternatives, preserve dissent.
-
----
-
-**End of repo `CLAUDE.md`.** Deeper context: `~/CS/CLAUDE.md`. Canonical state: `docs/idea_v1.md`.
+- Solo work: direct push to `main` is OK for small fixes.
+- Anything reviewed: `feature/<short-name>` branch + PR.
+- Atomic commits, imperative subject + body.
+- Add `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` when Claude generated the change.
