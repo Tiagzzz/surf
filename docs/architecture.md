@@ -1,6 +1,6 @@
 # Surf — Architecture
 
-This document is the on-repo summary. The canonical, evolving architecture lives in the **Idea & Progress** NotebookLM notebook (latest `Idea vN` source) and in `setup/code_buckets.md` of the planning vault.
+This document is the on-repo summary. The canonical, evolving architecture lives in the **Idea & Progress** NotebookLM notebook (latest `Idea vN` source).
 
 ## 10 buckets
 

@@ -40,7 +40,7 @@ The codebase is organised into **10 buckets**, with **one sub-folder per pipelin
 ```
 surf/
 ├── streamlit_app.py            # Entry — auth router (st.navigation)
-├── pages/                      # 7 thin page files, one per Streamlit page
+├── views/                      # 7 thin page files, one per Streamlit page (renamed from pages/ to avoid Streamlit auto-magic collision)
 │   ├── signup.py               # P1
 │   ├── my_classes.py           # P2 (Home)
 │   ├── class_view.py           # P3 (renamed from `class` — Python keyword)
