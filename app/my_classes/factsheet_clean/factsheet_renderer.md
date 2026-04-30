@@ -10,11 +10,11 @@ bucket: app/my_classes/factsheet_clean
 
 # `factsheet_renderer.py`
 
-> Wikilinks: consumes the output of [[factsheet_cleaner]]. The rendered Markdown is what the student reviews and approves on the **MY_CLASSES** page (P2). No outbound dependencies (pure Python).
+> Related: consumes the output of [factsheet_cleaner](factsheet_cleaner.md). The rendered Markdown is what the student reviews and approves on the **MY_CLASSES** page (P2). No outbound dependencies (pure Python).
 
 ## What it does
 
-Takes the strict JSON produced by [[factsheet_cleaner]] and renders it into Markdown for the student to read in Streamlit (or Obsidian during testing). **Pure Python — no Claude API call.**
+Takes the strict JSON produced by [factsheet_cleaner](factsheet_cleaner.md) and renders it into Markdown for the student to read in Streamlit (or Obsidian during testing). **Pure Python — no Claude API call.**
 
 Key behaviors:
 - **No section numbers** in headings (`## Course Snapshot`, not `## 1. Course Snapshot`).
@@ -46,7 +46,7 @@ No Surf-internal dependencies.
 
 | Argument | Type | Required | Purpose |
 |---|---|---|---|
-| `data` | `dict[str, Any]` | yes | Cleaned JSON matching the schema in [[factsheet_cleaner_system_prompt]] |
+| `data` | `dict[str, Any]` | yes | Cleaned JSON matching the schema in [factsheet_cleaner_system_prompt](factsheet_cleaner_system_prompt.md) |
 
 ## Outputs
 

@@ -10,7 +10,7 @@ bucket: app/brain/ingestion
 
 # `pdf_to_md_v3.py`
 
-> Wikilinks: output is consumed by [[factsheet_cleaner]] for the factsheet pipeline. Will also be consumed by the future `lecture_ingest` pipeline.
+> Related: output is consumed by [factsheet_cleaner](../../my_classes/factsheet_clean/factsheet_cleaner.md) for the factsheet pipeline. Will also be consumed by the future `lecture_ingest` pipeline.
 
 ## What it does
 

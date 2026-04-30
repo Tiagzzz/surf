@@ -10,7 +10,7 @@ bucket: app/my_classes/factsheet_clean
 
 # `factsheet_cleaner.py`
 
-> Wikilinks: depends on [[claude_client]] and [[factsheet_cleaner_system_prompt]]. Consumes the output of [[pdf_to_md_v3]]. Its output is consumed by [[factsheet_renderer]] (and the database via the `app/my_classes/factsheet_clean/` pipeline).
+> Related: depends on [claude_client](../../brain/claude_client/claude_client.md) and [factsheet_cleaner_system_prompt](factsheet_cleaner_system_prompt.md). Consumes the output of [pdf_to_md_v3](../../brain/ingestion/pdf_to_md_v3.md). Its output is consumed by [factsheet_renderer](factsheet_renderer.md) (and the database via the `app/my_classes/factsheet_clean/` pipeline).
 
 ## What it does
 
@@ -18,7 +18,7 @@ Takes the raw Markdown produced by `pdf_to_md_v3.py` and asks Claude (via the sh
 
 **Analogy**: think of it as handing a messy hand-written form to a careful assistant who fills out a clean structured template based on it.
 
-The full schema and field rules live in [[factsheet_cleaner_system_prompt]] — this script is just the wiring.
+The full schema and field rules live in [factsheet_cleaner_system_prompt](factsheet_cleaner_system_prompt.md) — this script is just the wiring.
 
 ## How to call it
 
@@ -34,8 +34,8 @@ data = clean_factsheet(raw_md)
 
 ## Dependencies
 
-- **[[claude_client]]** — same project, `app/brain/claude_client/claude_client.py`
-- **[[factsheet_cleaner_system_prompt]]** — sibling `.md` file, loaded at runtime
+- **[claude_client](../../brain/claude_client/claude_client.md)** — same project, `app/brain/claude_client/claude_client.py`
+- **[factsheet_cleaner_system_prompt](factsheet_cleaner_system_prompt.md)** — sibling `.md` file, loaded at runtime
 - Indirect: `anthropic` SDK (via `claude_client`) and `ANTHROPIC_API_KEY` env var
 
 ## Inputs
@@ -46,7 +46,7 @@ data = clean_factsheet(raw_md)
 
 ## Outputs
 
-`dict[str, Any]` — a parsed JSON object matching the schema in [[factsheet_cleaner_system_prompt]]. Top-level keys:
+`dict[str, Any]` — a parsed JSON object matching the schema in [factsheet_cleaner_system_prompt](factsheet_cleaner_system_prompt.md). Top-level keys:
 
 - `course_snapshot` — name, code, semester, ECTS, language, lecturers, format
 - `FSLO` — Factsheet Learning Objectives (course-level outcomes)
@@ -61,7 +61,7 @@ data = clean_factsheet(raw_md)
 - [ ] **Anthropic SDK install**: requires `pip install anthropic` in the Surf venv. Not yet installed system-wide on Tiago's machine — will be addressed when the Streamlit app's `requirements.txt` is created.
 - [ ] **Error handling**: currently lets `claude_client`'s exceptions bubble (`json.JSONDecodeError` if Claude returns malformed JSON, `anthropic.*Error` for API issues). The Streamlit caller should catch and surface a friendly retry UX.
 - [ ] **Schema validation**: the JSON is trusted as-is. A jsonschema validation pass against the locked schema would catch cleaner regressions before the data hits the DB. Defer until the cleaner prompt is locked across more factsheet shapes.
-- [ ] **Cost / latency telemetry**: not currently logged. Pair with the same TODO on [[claude_client]].
+- [ ] **Cost / latency telemetry**: not currently logged. Pair with the same TODO on [claude_client](../../brain/claude_client/claude_client.md).
 
 ---
 
@@ -104,7 +104,7 @@ def clean_factsheet(raw_md: str) -> dict[str, Any]:
 
 Three lines of real work:
 1. Load the system prompt fresh on each call (so a saved edit takes effect immediately — no module reload needed).
-2. Hand off to [[claude_client]]'s `call_claude` with `expect_json=True` — that flag tells the wrapper to parse the response as JSON and strip any stray code fences.
+2. Hand off to [claude_client](../../brain/claude_client/claude_client.md)'s `call_claude` with `expect_json=True` — that flag tells the wrapper to parse the response as JSON and strip any stray code fences.
 3. Return the parsed dict directly to the caller.
 
 Notice the script doesn't pick a model, set max_tokens, or worry about prompt caching — those defaults all live in `claude_client`. **This is the payoff of the shared wrapper**: every specialist script stays this small.

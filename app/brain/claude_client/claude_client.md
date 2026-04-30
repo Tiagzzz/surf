@@ -9,7 +9,7 @@ bucket: app/brain/claude_client
 
 # `claude_client.py`
 
-> Wikilinks: used by [[factsheet_cleaner]]. Will be reused by future `slo_extractor` and `mcq_generator` scripts.
+> Related: used by [factsheet_cleaner](../../my_classes/factsheet_clean/factsheet_cleaner.md). Will be reused by future `slo_extractor` and `mcq_generator` scripts.
 
 ## What it does
 
