@@ -41,3 +41,7 @@ Thumbs.db
 
 # Local planning handoff snapshots (not committed)
 docs/handoff_*/
+
+# HSG course material (other classes' exam catalogues used as
+# NotebookLM analysis input — not Surf code, not committed)
+OLD_EXAM_CATALOG/
