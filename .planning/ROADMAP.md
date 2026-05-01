@@ -30,7 +30,7 @@ The video track (Juliette + Cons) runs in parallel with code from Phase 2 onward
   3. The LO-extractor Claude call returns valid JSON (LOs with page ranges + page-ignore list) against a fixed page-ignore category list.
   4. The MCQ-generator Claude call produces ≥1 MCQ per saved (non-ignored) slide, each with question text + 4 options + correct answer + Claude rationale + 6 difficulty-feature placeholders.
   5. The smoke test (`pytest -q`) passes and exercises one ingestion of a sample lecture PDF end-to-end into a fresh SQLite file.
-**Plans**: TBD
+**Plans**: 5 (1 complete: 01-01 SQLite database spine)
 
 ### Phase 2: Mock Taking Loop (P1–P5)
 **Goal**: A first-time user can sign up, create a class from a factsheet PDF, see ingested lectures, build a standard or PRACTICE mock, take it under a timer, and review per-question results with Claude rationales.
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Ingestion Spine + Database | 0/TBD | Not started | - |
+| 1. Ingestion Spine + Database | 1/5 | In progress | - |
 | 2. Mock Taking Loop (P1–P5) | 0/TBD | Not started | - |
 | 3. Dashboard + Settings (P6–P7) | 0/TBD | Not started | - |
 | 4. ML Difficulty Model | 0/TBD | Not started | - |
