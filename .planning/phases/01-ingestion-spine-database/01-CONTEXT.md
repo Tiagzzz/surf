@@ -33,7 +33,17 @@ Out of scope (other phases):
 
 ### LO Extractor design
 
-- **D-1.1 (Skip rule):** A slide is skipped from MCQ generation if it matches ANY of: agenda, image-only (no real text), sources/references-only, title page, blank, institutional / disclaimer / policy slide, OR the slide content is not relevant to any topic in the class's factsheet.
+- **D-1.1 (Structural skip categories — LOCKED 2026-05-01):** A slide is skipped if it matches ANY of these 9 structural categories:
+  1. **title** — course/lecture title slide (course title, lecturer name, date — nothing else).
+  2. **agenda** — table of contents, "What we'll cover today", outline of upcoming sections.
+  3. **section_divider** — single big heading marking transition between parts (e.g. "Part 2: Strategy"), no real content.
+  4. **closing** — "Thank you", "Q&A?", "Any questions?", end-of-deck filler.
+  5. **references_only** — bibliography / reference list with no concept content.
+  6. **image_only** — pure decoration, photo, or illustrative diagram with no labels/text that would teach a concept.
+  7. **blank** — empty or near-empty slide (whitespace, transition placeholder).
+  8. **institutional** — university logo, copyright notice, affiliations, institutional branding/disclaimer/policy.
+  9. **speaker_bio** — "About me" / lecturer credentials / speaker introduction.
+- **D-1.1b (Semantic skip rule — LOCKED 2026-05-01):** Independent of structure: a slide is also skipped if its content is not relevant to ANY topic in the class's factsheet (`core_course_content.main_topics`, `important_concepts_models_methods`, or `FSLO`). This catches off-topic guest-speaker slides, tangents, and anecdotes inside otherwise on-topic decks.
 - **D-1.2 (Inputs):** The LO-extractor takes `(lecture_md, factsheet_subset)` where `factsheet_subset` is a curated subset of the factsheet JSON — NOT the whole thing. Only these keys pass through:
   - `surf_extraction_notes` (the ~130-word collapsed prose context note)
   - `core_course_content.narrative_summary` (Course Narrative)

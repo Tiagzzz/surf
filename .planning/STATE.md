@@ -76,7 +76,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- **A1 — Page-ignore category list (Phase 1):** Fixed list of slide types Claude classifies as ignorable (title, ToC, "Thank you", references-only, image-only, blank, institutional disclaimers, etc.) is needed before LO-extractor prompt can be written. Owner: Tiago.
+- ~~**A1 — Page-ignore category list (Phase 1):** RESOLVED 2026-05-01. 9 structural categories locked in 01-CONTEXT.md as D-1.1; semantic off-topic rule split out as D-1.1b.~~
 - **B1 — ML dataset acquisition (Phase 4):** ~200 example MCQs with observed difficulty needed for training. Outreach to HSG teachers gated on Tiago's next Übung session. Fallback: ship 3 locked features only.
 - **Plaintext API key (Phase 2):** Confirm with Simon Mayer at next Übung that local plaintext storage is acceptable per HSG rules. Likely yes (local-only app).
 - **Calendar pressure:** 13 days to buffer-upload (2026-05-13). Auffahrt collision (2026-05-14 = Ascension Day) means submission MUST land by 2026-05-13.

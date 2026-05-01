@@ -74,6 +74,23 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Deep context** (grading rubric, deadlines, full architecture, communication style): vault `~/CS/CLAUDE.md` and `~/CS/AGENTS.md` (Codex equivalent).
 - **Communication rules:** `~/CS/CS_Obsidian/CS_EN_VF/setup/tiago_guidelines.md` — non-negotiable; describes Tiago's working style. Read first.
 
+## NotebookLM workflow (non-negotiable — team alignment)
+
+Two project notebooks must stay current. The rest of the team reads from them.
+
+- **Lectures** — id `6bc919e0-21c9-452e-b203-507f078efa33` (read-only). Reference for *how the class teaches us to do things*. Query before introducing a new pattern (sqlite usage, Streamlit idioms, prompt structure, etc.) so the implementation stays course-aligned.
+- **Idea & Progress** — id `3e02fa3d-8ce2-4a6d-9da7-ac974e32452f` (shared with team; read + write). Source of truth for requirements, decisions, and progress.
+
+**Read pattern:** before planning or implementing, query the relevant notebook with `nlm-query` skill conventions (surgical source filtering, the four prompt templates).
+
+**Write-back pattern (Idea & Progress only).** Trigger when a phase/plan completes, a key decision changes, a TBD resolves, an architecture choice is locked, or a milestone ships:
+
+1. **Add a work-log source** — short markdown summarising what changed, when, and why. Use `mcp__notebooklm-mcp__source_add` (`source_type=text` for inline, `file` if a doc already lives in the repo).
+2. **Archive stale sources** — sources superseded by the new work log are removed from Idea & Progress and copied to `docs/archive/notebook_sources/<YYYY-MM-DD>_<source-name>.md` so history survives.
+3. **Filename convention** — apply the `nlm-new-notebook` skill's force-sort filenames so sources stay chronological.
+
+**Mandatory:** read the `nlm-new-notebook` and `nlm-query` SKILL.md files before any nlm tool call (per global SKILL-READ-RULE).
+
 ## Hard constraints (non-negotiable per Idea v1)
 
 - Python 3.11 + Streamlit only (no Flask, FastAPI, Django).
