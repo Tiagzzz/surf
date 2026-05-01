@@ -1,8 +1,8 @@
 """Surf — module-level SQLite connection + schema bootstrap."""
 from __future__ import annotations
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 DB_FILE = Path("~/.surf/user.sqlite").expanduser()
 _SCHEMA_PATH = Path(__file__).with_name("schema") / "schema.sql"
