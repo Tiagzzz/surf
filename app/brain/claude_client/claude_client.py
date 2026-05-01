@@ -16,6 +16,9 @@ from typing import Any
 
 from anthropic import Anthropic
 from anthropic.types import TextBlockParam
+from dotenv import load_dotenv
+
+load_dotenv()  # picks up ANTHROPIC_API_KEY from a local .env (gitignored).
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_MAX_TOKENS = 8192
