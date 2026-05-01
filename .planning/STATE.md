@@ -5,13 +5,13 @@ milestone_name: milestone
 status: executing
 stopped_at: GSD roadmapper produced PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md from intel/SYNTHESIS.md.
 last_updated: "2026-04-30T23:44:02.941Z"
-last_activity: 2026-05-01 -- Plan 01-03 (LO extractor) complete
+last_activity: 2026-05-01 -- Plan 01-04 (MCQ generator) complete
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 1 (Ingestion Spine + Database) — EXECUTING
-Plan: 4 of 5 (next: 01-04 MCQ generator)
-Status: Executing Phase 1 — Wave 2 in progress (01-03 done, 01-04 next)
-Last activity: 2026-05-01 -- Plan 01-03 (LO extractor) complete
+Plan: 5 of 5 (next: 01-05 end-to-end orchestrator + smoke test)
+Status: Executing Phase 1 — Waves 1+2 done, Wave 3 next
+Last activity: 2026-05-01 -- Plan 01-04 (MCQ generator) complete
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
