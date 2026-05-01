@@ -12,7 +12,7 @@ The video track (Juliette + Cons) runs in parallel with code from Phase 2 onward
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Ingestion Spine + Database** - Close PDF→MD→LO→MCQ→DB pipeline; ship SQLite schema; everything downstream gets real data.
+- [x] **Phase 1: Ingestion Spine + Database** ✅ 2026-05-01 — Closed PDF→MD→LO→MCQ→DB pipeline, shipped 8-table SQLite schema. Verified via smoke test + live API run on MII_SM1.pdf. See `.planning/phases/01-ingestion-spine-database/01-VERIFICATION.md`.
 - [ ] **Phase 2: Mock Taking Loop (P1–P5)** - User can sign up, create a class, ingest a lecture, build a mock, take it, and see results with rationales.
 - [ ] **Phase 3: Dashboard + Settings (P6–P7)** - User can see analytics across attempts and manage their account/data.
 - [ ] **Phase 4: ML Difficulty Model** - Train and integrate the 6-feature sklearn model (linear-regression primary + random-forest sensitivity); per-question scores feed P5 + radar chart.
