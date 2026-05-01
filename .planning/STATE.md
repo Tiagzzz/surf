@@ -86,7 +86,7 @@ None yet.
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| Process | **Sidecar code-walkthrough sections.** Every sidecar `.md` (15 files in Phase 1) needs a new section walking through the code section-by-section in plain language for non-engineer teammates. Structure TBD — discuss at start of Phase 2, then back-fill Phase 1 sidecars + adopt as end-of-wave routine. May require revising C-22's ≤100-line sidecar cap. | OPEN | 2026-05-01 (Tiago request) |
 
 ## Session Continuity
 
