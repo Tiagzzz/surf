@@ -19,7 +19,7 @@ def ocr_pdf(pdf_path: Path, dpi: int = 300, lang: str = "eng") -> str:
     text_chunks = []
     for page_number, page_image in enumerate(pages, start=1):
         page_text = pytesseract.image_to_string(page_image, lang=lang)
-        header = f"\n\n# Page {page_number}\n\n"
+        header = f"\n\n--- PAGE {page_number} ---\n\n"
         text_chunks.append(header + page_text)
     return "\n".join(text_chunks).strip()
 
@@ -100,7 +100,7 @@ def extract_with_tables(pdf_path: Path) -> tuple[str, int, int]:
         for page_index, page in enumerate(pdf.pages, start=1):
             if out_lines:
                 out_lines.append("")
-            out_lines.append(f"# Page {page_index}")
+            out_lines.append(f"--- PAGE {page_index} ---")
             out_lines.append("")
 
             found_tables = page.find_tables() or []

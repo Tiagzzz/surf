@@ -65,7 +65,7 @@ No Surf-internal dependencies.
 
 For each input `<name>.pdf`, two files are written into `--output-dir`:
 
-- **`<name>.md`** — the Markdown text. Page boundaries become `# Page N` headings.
+- **`<name>.md`** — the Markdown text. Page boundaries are emitted as `--- PAGE N ---` markers on their own line (per phase decision D-4.1; consumed by `app/brain/ingestion/page_splitter`).
 - **`<name>.json`** — small metadata file (extraction method used, table counts).
 
 ## Still to do
@@ -106,7 +106,7 @@ Replaces unsafe filesystem characters before writing output. Falls back to `"out
 
 ### Native text extraction (the happy path)
 
-The main extraction loop iterates over pages with pdfplumber, extracts text + tables per page, and merges them into a single Markdown string with `# Page N` headers. Tables that pdfplumber detects are rendered as Markdown tables; everything else flows as paragraph text.
+The main extraction loop iterates over pages with pdfplumber, extracts text + tables per page, and merges them into a single Markdown string with `--- PAGE N ---` markers (D-4.1). Tables that pdfplumber detects are rendered as Markdown tables; everything else flows as paragraph text.
 
 ### OCR fallback
 
@@ -116,7 +116,7 @@ def ocr_pdf(pdf_path: Path, dpi: int = 300, lang: str = "eng") -> str:
     text_chunks = []
     for page_number, page_image in enumerate(pages, start=1):
         page_text = pytesseract.image_to_string(page_image, lang=lang)
-        header = f"\n\n# Page {page_number}\n\n"
+        header = f"\n\n--- PAGE {page_number} ---\n\n"
         text_chunks.append(header + page_text)
     return "\n".join(text_chunks).strip()
 ```
@@ -178,7 +178,7 @@ def ocr_pdf(pdf_path: Path, dpi: int = 300, lang: str = "eng") -> str:
     text_chunks = []
     for page_number, page_image in enumerate(pages, start=1):
         page_text = pytesseract.image_to_string(page_image, lang=lang)
-        header = f"\n\n# Page {page_number}\n\n"
+        header = f"\n\n--- PAGE {page_number} ---\n\n"
         text_chunks.append(header + page_text)
     return "\n".join(text_chunks).strip()
 
@@ -259,7 +259,7 @@ def extract_with_tables(pdf_path: Path) -> tuple[str, int, int]:
         for page_index, page in enumerate(pdf.pages, start=1):
             if out_lines:
                 out_lines.append("")
-            out_lines.append(f"# Page {page_index}")
+            out_lines.append(f"--- PAGE {page_index} ---")
             out_lines.append("")
 
             found_tables = page.find_tables() or []
