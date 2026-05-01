@@ -24,15 +24,15 @@ df = list_questions_for_lecture(lecture_id=1)
 
 | Function | In | Out |
 |----------|----|-----|
-| `insert_question(...)` | see signature; 3 LOCKED difficulty fields are kwargs, default `None` | `int` lastrowid |
+| `insert_question(...)` | see signature; all 7 difficulty fields are kwargs, default `None` | `int` lastrowid |
 | `list_questions_for_slide_page(slide_page_id)` | int | DataFrame |
 | `list_questions_for_lecture(lecture_id)` | int — JOINs through slide_pages | DataFrame |
 
 ## Where it fits
 
-Plan 04's MCQ-generator writes rows here. Phase 2's mock-take page reads them via `list_questions_for_lecture`. Phase 4's ML difficulty model backfills the 4 PENDING fields directly with raw `UPDATE` SQL — those columns stay NULL until then.
+Plan 04's MCQ-generator writes rows here, normally passing only the 3 LOCKED Phase 1 difficulty kwargs (`word_count`, `readability`, `distractor_similarity`). Phase 2's mock-take page reads them via `list_questions_for_lecture`. Phase 4's ML pipeline can pass the 4 PENDING kwargs (`topic`, `concept_overlap`, `skip_confidence`, `score`) through this same wrapper rather than writing raw `UPDATE` SQL.
 
 ## Gotchas-if-real
 
 - `correct_indices` is **always a list of int**, even when there is one correct answer. Decode with `json.loads(row["correct_indices"])`. The UI uses checkboxes when `len(correct_indices) >= 2`.
-- Only the 3 LOCKED difficulty kwargs are accepted today. The 4 PENDING ones (`difficulty_topic`, `difficulty_concept_overlap`, `difficulty_skip_confidence`, `difficulty_score`) are filled in Phase 4 by raw SQL — adding kwargs for them now would lock a contract that may change.
+- All 7 difficulty fields are kwargs (3 LOCKED + 4 PENDING). Phase 1 ingestion normally fills only the 3 LOCKED ones; the 4 PENDING ones default to `None`. Phase 4's ML pipeline can either call `insert_question(... difficulty_score=0.7)` for new rows or run a raw `UPDATE` for backfill.
