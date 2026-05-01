@@ -1,0 +1,197 @@
+{
+  "$comment": "Spec for the DB structure illustration on FigJam page 37:296. Build manifest + post-build verification checklist. Mirrors app/db/schema/schema.sql verbatim — every column listed must exist in the SQL.",
+  "page": {
+    "id": "37:296",
+    "name": "DB"
+  },
+  "style": {
+    "$source": "Read from user's reusable cards on the Legend page",
+    "section_fill": { "r": 1.000, "g": 0.839, "b": 0.949 },
+    "section_padding": { "left": 48, "top": 16, "right": 48, "bottom": 16 },
+    "table_card": {
+      "shapeType": "INTERNAL_STORAGE",
+      "width": 428, "height": 124,
+      "fill": { "r": 0.973, "g": 0.286, "b": 0.757 },
+      "text_color": { "r": 1, "g": 1, "b": 1 },
+      "font": { "family": "Inter", "style": "Medium" },
+      "font_size": 40
+    },
+    "column_card": {
+      "shapeType": "PREDEFINED_PROCESS",
+      "width": 408, "height": 124,
+      "fill": { "r": 1, "g": 0.761, "b": 0.925 },
+      "text_color": { "r": 1, "g": 1, "b": 1 },
+      "font": { "family": "Inter", "style": "Medium" },
+      "font_size": 24
+    },
+    "card_gap_horizontal": 52,
+    "connector": {
+      "lineType": "STRAIGHT",
+      "endStrokeCap": "ARROW_LINES",
+      "stroke_weight": 8,
+      "stroke_color": { "r": 0.949, "g": 0.282, "b": 0.133 }
+    }
+  },
+  "tables": [
+    {
+      "id": "users",
+      "level": 1,
+      "branch_position": 0,
+      "$comment_columns": "schema.sql users table; skipped id and created_at",
+      "columns": [
+        { "name": "username", "note": "(unique)" },
+        { "name": "anthropic_api_key", "note": "(personal API key)" }
+      ]
+    },
+    {
+      "id": "classes",
+      "level": 2,
+      "branch_position": 0,
+      "columns": [
+        { "name": "user_id", "note": "→ users.id", "is_fk": true },
+        { "name": "name", "note": "(e.g. \"Macroeconomics II\")" },
+        { "name": "factsheet_json", "note": "(cleaned by Claude)" },
+        { "name": "pass_threshold_pct", "note": "(default 50)" }
+      ]
+    },
+    {
+      "id": "lectures",
+      "level": 3,
+      "branch_position": 0,
+      "$comment_branch_position": "0 = upper child of classes (lectures branch)",
+      "columns": [
+        { "name": "class_id", "note": "→ classes.id", "is_fk": true },
+        { "name": "title", "note": "" },
+        { "name": "source_pdf_path", "note": "" },
+        { "name": "total_pages", "note": "" },
+        { "name": "status", "note": "pending → ready" }
+      ]
+    },
+    {
+      "id": "attempts",
+      "level": 3,
+      "branch_position": 1,
+      "$comment_branch_position": "1 = lower child of classes (mock-taking branch)",
+      "columns": [
+        { "name": "class_id", "note": "→ classes.id", "is_fk": true },
+        { "name": "mock_kind", "note": "Standard | Practice" },
+        { "name": "started_at", "note": "" },
+        { "name": "finished_at", "note": "" },
+        { "name": "correct_count", "note": "" },
+        { "name": "total_count", "note": "" }
+      ]
+    },
+    {
+      "id": "learning_objectives",
+      "level": 4,
+      "branch_position": 0,
+      "$comment_branch_position": "0 = upper child of lectures",
+      "columns": [
+        { "name": "lecture_id", "note": "→ lectures.id", "is_fk": true },
+        { "name": "title", "note": "" },
+        { "name": "page_start", "note": "" },
+        { "name": "page_end", "note": "" }
+      ]
+    },
+    {
+      "id": "slide_pages",
+      "level": 4,
+      "branch_position": 1,
+      "$comment_branch_position": "1 = lower child of lectures",
+      "columns": [
+        { "name": "lecture_id", "note": "→ lectures.id", "is_fk": true },
+        { "name": "learning_objective_id", "note": "→ learning_objectives.id (nullable)", "is_fk": true },
+        { "name": "page_number", "note": "" },
+        { "name": "raw_md", "note": "(slide content)" },
+        { "name": "status", "note": "kept | ignored | pending" }
+      ]
+    },
+    {
+      "id": "attempt_answers",
+      "level": 4,
+      "branch_position": 2,
+      "$comment_branch_position": "2 = child of attempts (rightmost lane)",
+      "columns": [
+        { "name": "attempt_id", "note": "→ attempts.id", "is_fk": true },
+        { "name": "question_id", "note": "→ questions.id", "is_fk": true },
+        { "name": "selected_indices", "note": "" },
+        { "name": "is_correct", "note": "" }
+      ]
+    },
+    {
+      "id": "questions",
+      "level": 5,
+      "branch_position": 0,
+      "$comment_branch_position": "Single bridge node — receives arrows from slide_pages AND attempt_answers",
+      "columns": [
+        { "name": "slide_page_id", "note": "→ slide_pages.id", "is_fk": true },
+        { "name": "question_text", "note": "" },
+        { "name": "options_json", "note": "(4 options)" },
+        { "name": "correct_indices", "note": "1-4 indices, multi-correct OK" },
+        { "name": "rationales_per_option_json", "note": "(4 rationales)" },
+        { "name": "language", "note": "en | de | …" },
+        { "name": "6 difficulty features + score", "note": "(filled in Phase 4 ML)" }
+      ]
+    }
+  ],
+  "connectors": [
+    { "from": "users", "to": "classes" },
+    { "from": "classes", "to": "lectures" },
+    { "from": "classes", "to": "attempts" },
+    { "from": "lectures", "to": "learning_objectives" },
+    { "from": "lectures", "to": "slide_pages" },
+    { "from": "learning_objectives", "to": "slide_pages", "$comment": "soft FK via slide_pages.learning_objective_id — was MISSING in v1, must be present in v2" },
+    { "from": "slide_pages", "to": "questions" },
+    { "from": "attempts", "to": "attempt_answers" },
+    { "from": "attempt_answers", "to": "questions", "$comment": "the bridge — connects mock-taking back to ingestion output" }
+  ],
+  "layout": {
+    "$comment": "Horizontal tree, flowing left-to-right with vertical branching. Place new diagram BELOW the existing reference image (image bottom = y=1634)",
+    "origin_y": 1700,
+    "level_x_step": 3500,
+    "$comment_x_step": "Wide enough that even the questions section (5 cols → ~3284 wide) fits between levels",
+    "branch_y_step": 250,
+    "level_x": {
+      "1": 0, "2": 3500, "3": 7000, "4": 10500, "5": 14000
+    },
+    "$comment_branch_y": "y offset from a midline. lectures=-180, slide_pages=0, attempt_answers=+180. LOs=-360, attempts=+180, questions=+90 (between slide_pages and attempt_answers)",
+    "branch_y": {
+      "users": 0,
+      "classes": 0,
+      "lectures": -200,
+      "attempts": 200,
+      "learning_objectives": -400,
+      "slide_pages": 0,
+      "attempt_answers": 400,
+      "questions": 200
+    }
+  },
+  "stickies_keep": [
+    { "id": "252:11478", "$comment": "User's existing pink commentary sticky — keep as-is" }
+  ],
+  "stickies_create": [
+    {
+      "purpose": "title_subtitle_keep",
+      "$comment": "Existing 252:11087 (Surf's Database) and 252:11094 (8 Tables) text nodes — keep, do not recreate"
+    }
+  ],
+  "cleanup_delete": {
+    "$comment": "IDs to remove before rebuild",
+    "v1_diagram_my_old_cards": ["256:635","256:641","256:647","256:653","256:659","256:665","256:671","256:677"],
+    "v1_diagram_my_old_connectors": ["256:683","256:687","256:691","256:695","256:699","256:703","256:707","256:711"],
+    "v1_diagram_my_old_stickies": ["256:715","256:719","256:723","256:727"],
+    "v2_user_wip_to_replace": ["252:11472","252:11155","252:11232","252:11491","252:11300","252:11329"],
+    "v2_user_wip_connectors": ["252:11211","252:11273","252:11343","252:11352","252:11505"]
+  },
+  "verify_checklist": {
+    "table_count": 8,
+    "connector_count": 9,
+    "every_table_in_a_section": true,
+    "every_section_has_table_card_plus_at_least_one_column_card": true,
+    "fk_columns_visible_in_text": ["classes.user_id","lectures.class_id","learning_objectives.lecture_id","slide_pages.lecture_id","slide_pages.learning_objective_id","questions.slide_page_id","attempts.class_id","attempt_answers.attempt_id","attempt_answers.question_id"],
+    "no_overlapping_sections": true,
+    "no_connector_crosses_section_body": true,
+    "lo_to_slide_pages_connector_present": true,
+    "$comment_fk_columns": "These 9 FK columns must be visible inside their respective section. The diagram is wrong if any are missing."
+  }
+}
