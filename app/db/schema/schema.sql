@@ -73,10 +73,13 @@ CREATE TABLE IF NOT EXISTS questions (
     difficulty_word_count INTEGER,
     difficulty_readability REAL,
     difficulty_distractor_similarity REAL,
-    -- 3 PENDING difficulty features (Phase 4 ML; Phase 1 always NULL)
-    difficulty_topic REAL,
-    difficulty_concept_overlap REAL,
-    difficulty_skip_confidence REAL,
+    -- 3 PENDING difficulty features (computed via per-MCQ Claude call;
+    -- nullable in Phase 1 — orchestrator may compute them or leave NULL).
+    -- Names locked 2026-05-01 per docs/difficulty_criteria_recommendation.md.
+    difficulty_conceptual_density INTEGER,
+    difficulty_distractor_derivation INTEGER,
+    difficulty_reasoning_steps INTEGER,
+    -- Final difficulty score: filled by trained model in Phase 4.
     difficulty_score REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (slide_page_id) REFERENCES slide_pages(id) ON DELETE CASCADE

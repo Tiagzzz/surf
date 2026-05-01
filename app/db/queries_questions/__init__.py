@@ -19,17 +19,18 @@ def insert_question(
     difficulty_word_count: int | None = None,
     difficulty_readability: float | None = None,
     difficulty_distractor_similarity: float | None = None,
-    difficulty_topic: float | None = None,
-    difficulty_concept_overlap: float | None = None,
-    difficulty_skip_confidence: float | None = None,
+    difficulty_conceptual_density: int | None = None,
+    difficulty_distractor_derivation: int | None = None,
+    difficulty_reasoning_steps: int | None = None,
     difficulty_score: float | None = None,
 ) -> int:
     """Insert one MCQ.
 
-    Phase 1 normally passes only the 3 LOCKED features (word_count, readability,
-    distractor_similarity). The 4 PENDING features and the final score are
-    accepted for symmetry — Phase 4's ML pipeline can call this same wrapper
-    instead of writing raw UPDATE SQL.
+    Phase 1 ingestion normally passes the 3 LOCKED features (word_count,
+    readability, distractor_similarity) plus optionally the 3 PENDING
+    Claude-computed features (conceptual_density, distractor_derivation,
+    reasoning_steps). The final difficulty_score is filled by Phase 4's
+    trained ML model.
     """
     with DB:
         cur = DB.execute(
@@ -37,8 +38,8 @@ def insert_question(
             "slide_page_id, question_text, options_json, correct_indices, "
             "rationales_per_option_json, source_page, language, "
             "difficulty_word_count, difficulty_readability, difficulty_distractor_similarity, "
-            "difficulty_topic, difficulty_concept_overlap, difficulty_skip_confidence, "
-            "difficulty_score"
+            "difficulty_conceptual_density, difficulty_distractor_derivation, "
+            "difficulty_reasoning_steps, difficulty_score"
             ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 slide_page_id,
@@ -51,9 +52,9 @@ def insert_question(
                 difficulty_word_count,
                 difficulty_readability,
                 difficulty_distractor_similarity,
-                difficulty_topic,
-                difficulty_concept_overlap,
-                difficulty_skip_confidence,
+                difficulty_conceptual_density,
+                difficulty_distractor_derivation,
+                difficulty_reasoning_steps,
                 difficulty_score,
             ),
         )

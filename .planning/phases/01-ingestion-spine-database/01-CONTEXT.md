@@ -74,9 +74,11 @@ Out of scope (other phases):
     difficulty_word_count: int | null          # 3 LOCKED features computable at ingestion
     difficulty_readability: float | null
     difficulty_distractor_similarity: float | null
-    difficulty_topic: float | null             # 3 PENDING features (Phase 4 ML work)
-    difficulty_concept_overlap: float | null
-    difficulty_skip_confidence: float | null
+    # 3 PENDING features (Claude-computed per-MCQ; names locked 2026-05-01
+    # per docs/difficulty_criteria_recommendation.md). Integer not float.
+    difficulty_conceptual_density: int | null   # 1..15 — concurrent variables / framework constraints
+    difficulty_distractor_derivation: int | null # 0..3 — count of distractors derivable via common error path
+    difficulty_reasoning_steps: int | null      # 1..10 — ordered solution steps required
     difficulty_score: float | null             # filled by trained model in Phase 4
   }
   ```

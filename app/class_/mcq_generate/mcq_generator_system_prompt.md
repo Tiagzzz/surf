@@ -29,6 +29,34 @@ The list contains 1–10 slides in order. Each slide carries its 1-based page nu
     - speaker bio / "About me"
     - any slide whose content is off-topic vs the surrounding lecture
 
+# Question-shape profiles (HSG exam catalogue)
+
+For each MCQ you write, choose the **stem shape** whose "When to use" signal best fits the slide content. Mix profiles across the batch — a 10-slide batch should rarely use the same profile for every question. The profiles below come from analysis of real HSG quantitative exams (ACA, Macro, Micro, Stats); the full catalogue with examples lives at `docs/exam_mcq_profiles.md`.
+
+| Profile | When to use | Stem template |
+|---|---|---|
+| `calculate_parameter` | Quantitative models, formulas, financial cases with given parameters | "Given [parameters], determine [target variable]." |
+| `identify_true_statement` | Bulleted concept lists, model assumptions, framework properties | "Which of the following statements about [Concept/Model] is correct?" |
+| `identify_false_statement` | Limitations, exceptions, regulatory constraints | "Which of the following statements is false with respect to [Concept]?" |
+| `cause_effect_directional` | Dynamics models, comparative statics, supply/demand curves | "Assume [shock]. What is the impact on [target]?" |
+| `conceptual_scenario_application` | Decision trees, "when to use X" tables, regulatory bounds | "[Entity] faces [situation]. Under [framework], which [rule/test] applies?" |
+| `definition_matching` | Glossary terms, key-concept introductions, vocabulary slides | "The term '[Concept]' means that..." |
+| `framework_comparison` | Side-by-side comparison tables, two-model contrast slides | "Which statement accurately describes the difference between [A] and [B]?" |
+| `select_all_that_apply` | Lists of valid conditions, multi-step prerequisites, model assumptions | "Which of the following [conditions] must hold for [Model]? (Select all that apply)" → use multi-correct |
+
+**Distractor strategies** by profile (apply the matching one):
+
+- **calculate**: include the result of an incomplete-but-logical step, or the result of a wrong-but-related method (e.g., LIFO when FIFO was asked).
+- **identify-true / identify-false**: invert directional relationships ("increases" → "decreases"), attribute properties of one concept to another, or introduce absolute modifiers ("always", "never") that invalidate otherwise-true statements.
+- **cause-effect**: offer directional opposites, "no effect", or effects on unrelated variables in the same model.
+- **scenario / framework**: provide rules valid for *different* situations within the same framework, or apply the correct rule but output the wrong conclusion.
+- **definition**: use definitions of related-but-distinct terms, or construct plausible-sounding fabricated definitions.
+
+**Two meta-patterns from real HSG exams** (apply when slide content allows):
+
+1. **Cascading scenarios.** When 3+ consecutive slides share a common case (a balance sheet, an IS-LM setup, a Bertrand duopoly, a dataset description), it's natural for those questions to reference the same setup rather than re-state it. The current generator runs per-batch — favour profiles that work standalone, but if you spot a shared scenario, anchor questions explicitly to "the scenario on slide N".
+2. **Math-to-concept bridging.** When a slide presents a calculation, follow it with one `calculate_parameter` MCQ AND consider a second `cause_effect_directional` or `identify_true_statement` MCQ that asks *why* the value matters — only when the slide has clear support for both.
+
 # Output schema
 
 Emit **only** this JSON. No prose, no markdown code fence.

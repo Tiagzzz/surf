@@ -30,9 +30,9 @@ df = list_questions_for_lecture(lecture_id=1)
 
 ## Where it fits
 
-Plan 04's MCQ-generator writes rows here, normally passing only the 3 LOCKED Phase 1 difficulty kwargs (`word_count`, `readability`, `distractor_similarity`). Phase 2's mock-take page reads them via `list_questions_for_lecture`. Phase 4's ML pipeline can pass the 4 PENDING kwargs (`topic`, `concept_overlap`, `skip_confidence`, `score`) through this same wrapper rather than writing raw `UPDATE` SQL.
+Plan 04's MCQ-generator writes rows here. The orchestrator (Plan 05) passes the 3 LOCKED Phase 1 difficulty kwargs (`word_count`, `readability`, `distractor_similarity`) plus optionally the 3 PENDING Claude-computed kwargs (`conceptual_density`, `distractor_derivation`, `reasoning_steps`). Phase 2's mock-take page reads via `list_questions_for_lecture`. Phase 4's ML model fills `difficulty_score` (the final composite) once trained.
 
 ## Gotchas-if-real
 
 - `correct_indices` is **always a list of int**, even when there is one correct answer. Decode with `json.loads(row["correct_indices"])`. The UI uses checkboxes when `len(correct_indices) >= 2`.
-- All 7 difficulty fields are kwargs (3 LOCKED + 4 PENDING). Phase 1 ingestion normally fills only the 3 LOCKED ones; the 4 PENDING ones default to `None`. Phase 4's ML pipeline can either call `insert_question(... difficulty_score=0.7)` for new rows or run a raw `UPDATE` for backfill.
+- All 7 difficulty fields are kwargs (3 LOCKED + 3 PENDING + the final `difficulty_score`). Phase 1 ingestion fills the 3 LOCKED + optionally the 3 PENDING; `difficulty_score` is filled by Phase 4's ML model (raw `UPDATE` for backfill is fine).
