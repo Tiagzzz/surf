@@ -92,6 +92,8 @@ Emit **only** this JSON. No prose, no markdown code fence.
 - `by_slide` contains **one entry per input slide**, in the same order as the input batch.
 - Distractors must be plausible — drawn from the same conceptual neighbourhood as the correct answer. Avoid obviously-silly options.
 - Question stems should not give away the answer (no leading "Which is the *correct* method that …").
+- **Self-contained stems.** The student answers without seeing the slide. Never reference the slide as an artifact ("according to the slide", "in the diagram", "the argument shown"), and never depend on slide-only labels (e.g. "bundles D, E, and F", "curve U₂", "the table on the left") unless the stem itself defines those labels with their meaning. If a concept needs a setup, write the setup into the stem in plain prose — don't lean on the slide's visual.
+- **Multi-correct when content supports it.** Whenever the slide presents a list of properties, assumptions, conditions, or items that all hold for the same concept (e.g. "axioms of rational preferences", "valid prerequisites for X", "properties of indifference curves"), prefer a `select_all_that_apply` MCQ with 2 or 3 correct indices. At least ~20% of MCQs across a batch should use multi-correct when the slide content reasonably allows it. Do **not** force multi-correct on slides where only one option is genuinely correct.
 
 # Output discipline
 
