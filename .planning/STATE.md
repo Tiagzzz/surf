@@ -5,13 +5,13 @@ milestone_name: milestone
 status: executing
 stopped_at: GSD roadmapper produced PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md from intel/SYNTHESIS.md.
 last_updated: "2026-04-30T23:44:02.941Z"
-last_activity: 2026-05-01 -- Plan 01-01 (SQLite database spine) complete
+last_activity: 2026-05-01 -- Plan 01-02 (PDF markers + page_splitter) complete
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 1 (Ingestion Spine + Database) — EXECUTING
-Plan: 2 of 5 (next: 01-02 PDF marker migration + page_splitter)
-Status: Executing Phase 1
-Last activity: 2026-05-01 -- Plan 01-01 (SQLite database spine) complete
+Plan: 3 of 5 (next: 01-03 LO extractor)
+Status: Executing Phase 1 — Wave 1 complete
+Last activity: 2026-05-01 -- Plan 01-02 (PDF markers + page_splitter) complete
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
