@@ -73,7 +73,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [Phase 2 Streamlit widget catalog research](todos/pending/2026-05-02-phase-2-streamlit-widget-catalog-research.md) — researcher step at start of Phase 2 (after UI design locks, before plans 02-xx) producing vanilla green-list + streamlit-extras shortlist; user flagged `stylable_container` as top extras candidate.
 
 ### Blockers/Concerns
 
