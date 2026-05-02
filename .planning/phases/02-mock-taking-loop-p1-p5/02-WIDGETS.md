@@ -138,11 +138,15 @@ motion query disables all transforms (D-2.15). Loading-state label is
 
 ### Card — passive + interactive (D-2.13)
 
-| Variant | Wrapper key | Background | Border | Stamp shadow | Hover |
-|---|---|---|---|---|---|
-| Passive | `card-passive` | `--paper-0` | 1.5 px `--paper-2` | 2 px `--paper-shadow-soft` | n/a (non-interactive) |
-| Interactive | `card-interactive` | `--paper-0` | 1.5 px `--paper-2` | 4 px `--paper-shadow` (rest) → 6 px (hover) | translate `(-2px, -2px)`, border-color `--paper-4` |
-| Class card | `class-card` | `--paper` | 1.5 px `--paper-4` | 4 px `--paper-shadow` (rest) → 6 px (hover) | translate `(-2px, -2px)` |
+| Variant | Wrapper key | Background | Border | Stamp shadow | Hover | Padding |
+|---|---|---|---|---|---|---|
+| Passive | `card-passive` | `--paper-0` | 1.5 px `--paper-2` | 2 px `--paper-shadow-soft` | n/a (non-interactive) | `20 / 24` |
+| Interactive | `card-interactive` | `--paper-0` | 1.5 px `--paper-2` | 4 px `--paper-shadow` (rest) → 6 px (hover) | translate `(-2px, -2px)`, border-color `--paper-4` | `20 / 24` |
+| Class card | `class-card` | `--paper` | 1.5 px `--paper-4` | 4 px `--paper-shadow` (rest) → 6 px (hover) | translate `(-2px, -2px)` | `22 / 24` |
+
+Class-card padding bumped 18 → 22 (Defect 7, ruling 2026-05-02): the
+mono meta line ("12 lectures · 78%") was sitting too tight against the
+bottom border. Symmetric per Defect 3.
 
 ### Chip (D-2.19)
 
@@ -151,14 +155,27 @@ motion query disables all transforms (D-2.15). Loading-state label is
 radius, padding `6/14`. Renders inline via `chip(text, variant=)` →
 returns string; compose rows via `chips_row(items)`.
 
-### MCQ option — 4 states (D-2.20)
+### MCQ option — 4 states (D-2.20 + D-2.20a)
 
-| State | Wrapper key suffix | Background | Border | Stamp shadow | Padding |
-|---|---|---|---|---|---|
-| Off | `mcq-opt-{key}-off` | `--paper-1` | 1 px `--paper-shadow` | none | `13 / 14` |
-| On | `mcq-opt-{key}-on` | `--paper-0` | 2 px `--paper-shadow` | 2 px `--paper-shadow` | `14 / 15` |
-| Correct (P5) | `mcq-opt-{key}-correct` | `--ok-wash` | 2 px `--ok` | 2 px `--paper-shadow` | `14 / 15` |
-| Incorrect (P5) | `mcq-opt-{key}-incorrect` | `--accent-soft` | 2 px `--accent-deep` | 2 px `--paper-shadow` | `14 / 15` |
+The Off/On pair is now driven by `:has(input:checked)` (D-2.20a, ruling
+2026-05-02). The container key is just option identity — no `-off` / `-on`
+suffix. Correct / Incorrect keep state-baked suffix keys (P5 review
+paints them at render time, not via user interaction).
+
+| State | Wrapper key | CSS trigger | Background | Border | Stamp shadow | Padding |
+|---|---|---|---|---|---|---|
+| Off (default) | `mcq-opt-{question_id}-{option_letter}` | `:not(:has(input:checked))` plus `:not([class*="-correct"]):not([class*="-incorrect"])` | `--paper-1` | 1 px `--paper-shadow` | none | `13 / 14` |
+| On (live) | `mcq-opt-{question_id}-{option_letter}` (same) | `:has(input:checked)` plus the same `:not()` guards | `--paper-0` | 2 px `--paper-shadow` | 2 px `--paper-shadow` | `14 / 15` |
+| Correct (P5) | `mcq-opt-{key}-correct` | suffix-class match | `--ok-wash` | 2 px `--ok` | 2 px `--paper-shadow` | `14 / 15` |
+| Incorrect (P5) | `mcq-opt-{key}-incorrect` | suffix-class match | `--accent-soft` | 2 px `--accent-deep` | 2 px `--paper-shadow` | `14 / 15` |
+
+**Why D-2.20a:** the original D-2.20 froze the visual state at render
+time — clicking an option flipped the inner checkbox but the wrapper
+key still said `-off`, so the elevation/stamp-shadow On treatment never
+appeared. The `:has()` mechanism makes the click feel live (the existing
+120 ms `--t-fast` transition tweens bg / border / shadow / padding).
+Source-order places the `-correct` / `-incorrect` rules after the
+`:has()` rule so they win the cascade for review states.
 
 Container `border-radius: 5px` (literal — neither `--r-sm` nor `--r-md`).
 Custom 20×20 checkbox glyph drawn on `[data-baseweb="checkbox"] > div:first-child`
@@ -168,6 +185,11 @@ the inner background to `--paper-5` and renders a `✓` glyph in
 
 **Selection signal is paper elevation + stamp shadow, NOT an accent
 color.** Accent colors only appear in the P5 review state.
+
+**Browser support:** `:has()` ships in Chrome ≥ 105, Safari ≥ 15.4,
+Firefox ≥ 121. Streamlit's webview uses the host browser; macOS team
+is fine. Fallback (if ever needed) is documented in the D-2.20a
+edit-this-later note.
 
 ### MCQ card container (D-2.23)
 

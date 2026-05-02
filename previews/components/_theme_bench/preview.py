@@ -281,11 +281,14 @@ st.divider()
 # Each state is keyed `mcq-opt-{key}-{state}` so the scoped CSS branches
 # on the suffix and paints the four distinct surface treatments.
 # =========================================================================
-heading_h2("MCQ option states (D-2.20)")
+heading_h2("MCQ option states (D-2.20 + D-2.20a)")
 caption(
-    "Figma node 4045:282 — four states keyed via mcq-opt-{key}-{state}. "
-    "Selection signal during P4 is paper elevation + stamp shadow appearing "
-    "(NOT an accent color). Accent colors only appear in P5 review states."
+    "Figma node 4045:282 — Off / On are now driven by :has(input:checked); "
+    "the container key is just option identity (`mcq-opt-{question_id}-"
+    "{option_letter}`). Click any unchecked option below to see the live "
+    "Off→On transition (paper elevation + stamp shadow appearing). "
+    "Correct / Incorrect remain state-baked keys (P5 review paints them at "
+    "render time). Accent colors only appear in P5 review states."
 )
 
 with st.container(key="mcq-card"):
@@ -293,21 +296,21 @@ with st.container(key="mcq-card"):
     st.markdown('<p class="surf-meta">P4 · Q3 of 19 · MII Lecture 01</p>',
                 unsafe_allow_html=True)
 
-    eyebrow("OFF (unanswered, default)")
-    with st.container(key="mcq-opt-q1a-off"):
-        st.checkbox("A. Consumer income", value=False, key="mcq-state-q1a-off")
-    with st.container(key="mcq-opt-q1b-off"):
-        st.checkbox("B. Price of related goods", value=False, key="mcq-state-q1b-off")
+    eyebrow("OFF (unanswered, default — checkbox value=False)")
+    with st.container(key="mcq-opt-q1a"):
+        st.checkbox("A. Consumer income", value=False, key="mcq-state-q1a")
+    with st.container(key="mcq-opt-q1b"):
+        st.checkbox("B. Price of related goods", value=False, key="mcq-state-q1b")
 
-    eyebrow("ON (user-selected during P4)")
-    with st.container(key="mcq-opt-q1c-on"):
-        st.checkbox("C. Production technology", value=True, key="mcq-state-q1c-on")
+    eyebrow("ON (user-selected during P4 — checkbox value=True drives :has rule)")
+    with st.container(key="mcq-opt-q1c"):
+        st.checkbox("C. Production technology", value=True, key="mcq-state-q1c")
 
-    eyebrow("CORRECT (P5 review state)")
+    eyebrow("CORRECT (P5 review state — state-baked key)")
     with st.container(key="mcq-opt-q1d-correct"):
         st.checkbox("D. Production technology", value=True, key="mcq-state-q1d-correct")
 
-    eyebrow("INCORRECT (P5 review state)")
+    eyebrow("INCORRECT (P5 review state — state-baked key)")
     with st.container(key="mcq-opt-q1e-incorrect"):
         st.checkbox("E. Consumer preferences", value=True, key="mcq-state-q1e-incorrect")
 

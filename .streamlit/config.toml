@@ -14,5 +14,9 @@ secondaryBackgroundColor   = "#ede4d2"   # paper-1
 textColor                  = "#28251f"   # paper-5
 
 # Streamlit ≥1.50 modern theme knobs (RESEARCH §7.1).
+# `showBorderAroundInputs` was renamed to `showWidgetBorder` in 1.50 (the
+# 1.56 startup warned `"theme.showBorderAroundInputs" is not a valid config
+# option`). Same intent — paint a 1.5 px border around every Streamlit
+# widget so inputs/selects/etc. don't disappear into the paper bg.
 baseRadius                 = "0.5rem"
-showBorderAroundInputs     = true
+showWidgetBorder           = true

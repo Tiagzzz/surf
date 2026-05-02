@@ -194,7 +194,15 @@ This area was added after the parallel-session audit (`02-PARALLEL-AUDIT.md`). I
         with st.container(key=f"mcq-opt-{key}-{state}"):
             return st.checkbox(label, key=f"_mcq_{key}", label_visibility="visible")
     ```
-  - **Reach pattern for the scoped CSS** — selectors target `[class*="st-key-mcq-opt-"]` and branch on the state suffix: `[class*="st-key-mcq-opt-"][class*="-off"] { ... }`, `...-on`, `...-correct`, `...-incorrect`. Streamlit appends a stable hash but the `st-key-{exact-string}` portion is preserved.
+  - **Reach pattern for the scoped CSS** — selectors target `[class*="st-key-mcq-opt-"]` and branch on the state suffix: `[class*="st-key-mcq-opt-"][class*="-off"] { ... }`, `...-on`, `...-correct`, `...-incorrect`. Streamlit appends a stable hash but the `st-key-{exact-string}` portion is preserved. **(Superseded by D-2.20a for the Off/On pair — see below.)**
+
+- **D-2.20a (MCQ Off/On driven by `:has(input:checked)`, NEW 2026-05-02 — amends D-2.20):** the Off/On pair is no longer keyed via static suffixes. The container key is just option identity: `mcq-opt-{question_id}-{option_letter}` (e.g. `mcq-opt-q1-a`). The CSS responds to the inner checkbox's `:checked` state via `:has()`:
+  - **Off (default):** `[class*="st-key-mcq-opt-"]:not([class*="-correct"]):not([class*="-incorrect"]) { ... }` paints the paper-1 / 1 px border / no shadow / 13/14 padding spec.
+  - **On (live, checkbox checked):** `[class*="st-key-mcq-opt-"]:not([class*="-correct"]):not([class*="-incorrect"]):has(input:checked) { ... }` paints the paper-0 / 2 px border / 2 px stamp / 14/15 padding spec.
+  - **Correct / Incorrect (review-only):** keep the state-baked suffix keys (`mcq-opt-{key}-correct` / `-incorrect`). P5 renders them at paint time, not via user interaction. Source-order places them after the `:has()` rules so they win the cascade.
+  - **Why amended:** the original D-2.20 keying froze the visual state at render time — clicking an option flipped the checkbox but the wrapper key still said `-off`, so the elevation/stamp-shadow On treatment never appeared. The `:has()` mechanism makes the click feel live (the existing 120 ms transition tweens the bg / border / shadow / padding). Ruling 2026-05-02 (Tiago, Defect 8 of theme-bench review).
+  - **Browser support:** Chrome ≥ 105, Safari ≥ 15.4, Firefox ≥ 121 — all 2024+ browsers ship `:has()`. Streamlit's webview is the host browser; macOS team is fine.
+  - **Edit-this-later note:** the Off/On selectors live in the `MCQ OPTION` section of `_CSS` in `theme.py`. To revert to state-keyed Off/On (e.g. for a browser without `:has()`), swap each `:not(...)... :has(input:checked)` selector for `[class*="-on"]` and re-add static `-on` / `-off` suffix in the call site. Correct/Incorrect rules are unchanged either way.
 
 - **D-2.23 (Take Mock card container — NEW, from Figma node `4045:282`):** The MCQ card container that wraps Q-number chip + Class chip + Difficulty stars + question text + options + actions. Spec:
   - **Container:** `bg --paper`, `border 2px solid --paper-shadow`, `border-radius 6px`, `box-shadow 3px 3px 0 0 --paper-shadow` (the canonical 3px stamp), `padding 22px 20px 20px 20px` (top 22, sides 20, bottom 20), `max-width 600px`, vertical gap 13px between sections (header / question / options / actions).

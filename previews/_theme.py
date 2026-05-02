@@ -331,10 +331,13 @@ h4 { font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 
 
 /* =========================================================
    CLASS CARD — eyebrow + class name + meta (left) | big italic score (right)
+   Padding bumped 18 → 22 (Defect 7, 2026-05-02): the mono meta line
+   ("12 lectures · 78%") was sitting too tight against the bottom border.
+   Symmetric per Defect 3 — top == bottom.
    ========================================================= */
 [class*="st-key-class-card"] {
   background: var(--paper); border: 1.5px solid var(--paper-4);
-  border-radius: var(--r-md); padding: 18px 24px;
+  border-radius: var(--r-md); padding: 22px 24px;
   box-shadow: 4px 4px 0 0 var(--paper-shadow);
   transition: transform var(--t-base), box-shadow var(--t-base);
   cursor: pointer; margin-bottom: 16px;
@@ -475,20 +478,47 @@ p.surf-stat-value {
   margin: 0 !important;
   text-decoration: none !important;
 }
-/* 4c: kill the per-button underline. Streamlit's BaseWeb button paints
-   a 1 px focus/active line at the bottom of the rectangle; we strip it
-   wherever it appears inside a topbar-icon wrapper. Belt-and-braces:
-   text-decoration on the button + on its inner <a>/<p>/<span>, and
-   border-bottom: 0 on the button so any baseweb pseudo-element is
-   masked. */
-[class*="st-key-topbar-icon"] [data-testid="stButton"] button,
-[class*="st-key-topbar-icon"] [data-testid="stButton"] button *,
-[class*="st-key-topbar-icon"] [data-testid="stButton"] a {
+/* 4c: kill the per-button underline (Defect 4c → Defect 9 regression).
+   The earlier scoped selector only reached `st-key-topbar-icon`
+   children; the underline survived inside a wrapper that the icon-key
+   didn't catch. This widened block covers the entire topbar and every
+   element BaseWeb / Streamlit might paint a 1 px line on:
+   - the <button> itself (focus / active border-bottom)
+   - every descendant inside the button (<p>, <span>, <a>, etc.)
+   - <a> anchors that Streamlit sometimes injects with default text-
+     decoration: underline
+   - [data-baseweb="button"] and its descendants (BaseWeb's own
+     wrapper paints its own line in some Streamlit 1.50+ builds)
+   The :focus / :focus-visible / :hover overrides suppress the
+   browser's focus ring and BaseWeb's hover line on top of the
+   resting-state strip. */
+[class*="st-key-topbar"] button,
+[class*="st-key-topbar"] button *,
+[class*="st-key-topbar"] a,
+[class*="st-key-topbar"] a *,
+[class*="st-key-topbar"] [data-baseweb="button"],
+[class*="st-key-topbar"] [data-baseweb="button"] * {
   text-decoration: none !important;
+  border-bottom: none !important;
   border-bottom-width: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
+[class*="st-key-topbar"] button:focus,
+[class*="st-key-topbar"] button:focus-visible,
+[class*="st-key-topbar"] button:hover,
+[class*="st-key-topbar"] button:active {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  outline: none !important;
+}
+/* Restore the topbar-icon hover lift that the broad box-shadow:none
+   sweep above would otherwise have killed. The earlier hover styling
+   sat below this block in source order; we re-declare it here so it
+   wins the cascade (same specificity, later in source order). */
 [class*="st-key-topbar-icon"] [data-testid="stButton"] button:hover {
-  background: var(--paper-1); transform: none; box-shadow: 2px 2px 0 0 var(--paper-shadow-soft);
+  background: var(--paper-1); transform: none;
+  box-shadow: 2px 2px 0 0 var(--paper-shadow-soft) !important;
 }
 
 /* =========================================================
@@ -600,9 +630,17 @@ p.surf-caption {
 }
 
 /* =========================================================
-   MCQ OPTION (D-2.20, Figma node 4045:282) — REBUILT
-   Four states keyed via the wrapper class: mcq-opt-{key}-{state}
-   where state ∈ {off, on, correct, incorrect}.
+   MCQ OPTION (D-2.20 + D-2.20a, Figma node 4045:282) — REFACTORED 2026-05-02
+   The On/Off pair is now driven by :has(input:checked), NOT by a static
+   container-key suffix. The container key is just option identity:
+   `mcq-opt-{question_id}-{option_letter}`. Clicking the inner checkbox
+   flips the visual instantly (the existing transition still applies).
+   The review states `-correct` and `-incorrect` keep their state-baked
+   keys (P5 renders them at paint time, not via user interaction); the
+   :not() guards on the off/on rules make them mutually exclusive with
+   the review keys. Source-order also puts correct/incorrect last so they
+   win the cascade against the :has-driven On rule even when specificity
+   is equal.
    Selection signal is paper elevation + stamp shadow appearing — NOT
    an accent color (accents are reserved for P5 review state).
    ========================================================= */
@@ -667,28 +705,36 @@ p.surf-caption {
   line-height: 1;
 }
 
-/* OFF — paper-1 bg, 1px paper-shadow border, no shadow, padding 14/13. */
-[class*="st-key-mcq-opt-"][class*="-off"] {
+/* OFF (default — when the inner checkbox is NOT checked AND the wrapper
+   is not a P5 review state). paper-1 bg, 1 px paper-shadow border, no
+   shadow, padding 13/14. The :not() guards reserve the wrapper for the
+   review states (correct / incorrect) which paint via their own
+   state-baked keys further down. */
+[class*="st-key-mcq-opt-"]:not([class*="-correct"]):not([class*="-incorrect"]) {
   background: var(--paper-1);
   border: 1px solid var(--paper-shadow);
   box-shadow: none;
   padding: 13px 14px;
 }
-[class*="st-key-mcq-opt-"][class*="-off"]:hover {
+[class*="st-key-mcq-opt-"]:not([class*="-correct"]):not([class*="-incorrect"]):not(:has(input:checked)):hover {
   background: var(--paper-0);
 }
 
-/* ON — paper-0 bg, 2px paper-shadow border, 2px stamp shadow, padding
-   15/14 (border widens 1→2 px so padding shifts 14/13 → 15/14 to keep
-   text x-position stable). */
-[class*="st-key-mcq-opt-"][class*="-on"] {
+/* ON (triggered by :has(input:checked) — the inner checkbox is checked).
+   paper-0 bg, 2 px paper-shadow border, 2 px stamp shadow, padding
+   14/15 (the border widens 1→2 px so padding shifts 13/14 → 14/15 to
+   keep text x-position stable). The :not() guards keep this rule
+   mutually exclusive with the P5 review states. */
+[class*="st-key-mcq-opt-"]:not([class*="-correct"]):not([class*="-incorrect"]):has(input:checked) {
   background: var(--paper-0);
   border: 2px solid var(--paper-shadow);
   box-shadow: 2px 2px 0 0 var(--paper-shadow);
   padding: 14px 15px;
 }
 
-/* CORRECT — review-only state on P5. ok-wash bg, 2px ok border. */
+/* CORRECT — review-only state on P5. ok-wash bg, 2 px ok border. The
+   state-baked key wins the cascade against the :has-driven On rule
+   above (equal specificity, source order tie-break). */
 [class*="st-key-mcq-opt-"][class*="-correct"] {
   background: var(--ok-wash);
   border: 2px solid var(--ok);
@@ -696,7 +742,7 @@ p.surf-caption {
   padding: 14px 15px;
 }
 
-/* INCORRECT — review-only state on P5. accent-soft bg, 2px accent-deep
+/* INCORRECT — review-only state on P5. accent-soft bg, 2 px accent-deep
    border. */
 [class*="st-key-mcq-opt-"][class*="-incorrect"] {
   background: var(--accent-soft);
