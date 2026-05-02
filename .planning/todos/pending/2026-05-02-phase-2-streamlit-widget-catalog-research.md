@@ -26,9 +26,13 @@ Run a researcher step at the start of Phase 2, **after** the UI design for P1–
    - `with st.container():` blocks for grouped sections
    - `st.session_state` for the P4 mock-pinned state (not demoed in course but pointed-at in official docs the syllabus directs students to)
 
-2. **`streamlit-extras` shortlist** — per UI element, which extra (if any) is justified, which vanilla equivalent it replaces, and the Contribution Matrix justification line. Top candidate flagged by user: **`stylable_container`** (scoped CSS without global `unsafe_allow_html`).
+2. **`streamlit-extras` shortlist** — per UI element, which extra (if any) is justified, which vanilla equivalent it replaces, and the Contribution Matrix justification line. **Update 2026-05-02:** the originally-flagged top candidate `stylable_container` is **deprecated upstream**. The replacement is pure vanilla: `st.container(key="my_key")` stamps a `.st-key-my_key` class on the DOM element, and CSS targeting that class via `st.html("<style>.st-key-my_key { ... }</style>")` scopes the styles. The shortlist may end up empty for Surf — that's acceptable.
 
-**Hard reds (do not propose):** `streamlit-shadcn-ui`, `streamlit-elements`, `streamlit-antd-components`, `streamlit-option-menu`, raw `unsafe_allow_html` CSS injection in user code.
+**Hard reds (do not propose):** `streamlit-shadcn-ui`, `streamlit-elements`, `streamlit-antd-components`, `streamlit-option-menu`.
+
+**Softened amber (officially blessed):** `st.container(key=...)` + `st.html("<style>.st-key-X { ... }</style>")` for scoped CSS — recolor buttons, hover effects, keyframe animations, quiz/result card backgrounds, card hover lift, custom flex/grid layouts, surrounding chart frames. Does NOT work for: native chart internals (axes/tick colors → configure Altair/Plotly directly), JS-driven animations, confetti, page transitions. For modal-style overlays use `st.dialog`, not CSS-faked overlays.
+
+**Still red:** unscoped global `<style>` blocks; `unsafe_allow_html=True` for user-invented HTML (vs. CSS targeting Streamlit's own DOM).
 
 **Anchor sources:**
 - `canvas_downloads/module4/notebooks/Unit04.section5.ipynb` — section 5 lecture notebook
