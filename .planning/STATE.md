@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 CONTEXT amended again — fonts self-hosted (D-2.16 locked, 3 variable WOFF2 in assets/fonts/) + MCQ option redesigned per Figma node 4045:282 (D-2.20 replaced; D-2.23 card container + D-2.24 difficulty stars added). Plan 02-01 needs re-plan.
-last_updated: "2026-05-02T14:05:00.000Z"
-last_activity: 2026-05-02 -- Phase 2 context second amendment (fonts self-hosted, MCQ redesign from Figma node 4045:282)
+stopped_at: Phase 2 CONTEXT amended (third pass) — Area 7 added (D-2.25 ui/documentation.md deliverable + D-2.26 Figma component-logic researcher run). ui/documentation.md stub scaffolded. Plan 02-01 absorbs the researcher step + final-pass doc fill.
+last_updated: "2026-05-02T14:20:00.000Z"
+last_activity: 2026-05-02 -- Phase 2 context third amendment (ui/documentation.md stub + Figma component-logic researcher scope)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -36,8 +36,8 @@ Wave map (unchanged): W1 (01) → W2 (02, 03) → W3 (04a) → W4 (04b, 05) → 
 - 02-05: P4 Take Mock + fragment timer + UPSERT-on-nav + UNIQUE constraint amendment
 - 02-06: P5 Review Mock + summary banner + grading_formula extraction
 - 02-07: E2E AppTest P1→P5 + sidecar audit + final visual sweep
-Status: 02-CONTEXT.md amended (Area 6 Branding & Visual Language — D-2.12..D-2.24). Latest pass (2026-05-02 PM): D-2.16 swapped from Google Fonts @import to self-hosted WOFF2 in assets/fonts/ (3 variable files, ~190 KB); D-2.20 (MCQ option) replaced with the canonical Figma node 4045:282 design — custom 20×20 checkbox glyph, paper-1→paper-0 elevation on select (no accent color during P4), accent-soft/ok-wash only in P5 review, 5px container radius, padding shift on selection. D-2.23 (Take Mock card container) and D-2.24 (5-star difficulty display) added. Plans 02-02..02-07 still untouched by these amendments.
-Last activity: 2026-05-02 -- Phase 2 second amendment (fonts self-hosted + MCQ redesign per Figma 4045:282)
+Status: 02-CONTEXT.md now spans Area 6 (Branding & Visual Language — D-2.12..D-2.24) + Area 7 (Documentation & Knowledge Transfer — D-2.25..D-2.26). Third amendment today (2026-05-02 mid-PM): D-2.25 locks ui/documentation.md as a Phase 2 deliverable (single human-readable design-system reference for Tiago + teammates, ~500-line cap, 11 sections covering tokens / typography / color rules / component catalog / DOM reach map / etc.). D-2.26 locks a Figma component-logic researcher step inside plan 02-01 — uses the Figma MCP (≤30 calls cap) to extract rules-of-use that single-component inspection misses (cross-page composition, library descriptions, reconciliation against the SURF_UI(old) library). The researcher fills the stub at ui/documentation.md and reports back any token drift. Plans 02-02..02-07 still untouched.
+Last activity: 2026-05-02 -- Phase 2 third amendment (ui/documentation.md stub + Figma component-logic researcher)
 
 Phase 1 progress: [██████████] 100%
 Overall (1/5 phases): [██░░░░░░░░] 20%

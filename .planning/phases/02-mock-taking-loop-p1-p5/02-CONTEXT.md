@@ -222,6 +222,44 @@ This area was added after the parallel-session audit (`02-PARALLEL-AUDIT.md`). I
   - Sandboxes **must NOT `from app...` import** the production theme. The drift between the two copies is intentional — when production theme.py changes, the next visual task on a sandbox refreshes the sandbox copy and re-runs the preview gate (per `CLAUDE.md` Visual Preview Gate § "Sandbox rules").
   - **Edit-this-later note:** the migration step in plan 02-01 copies `Streamlit_Test/ui/theme.py` → both destinations and applies amendments D-2.15, D-2.20, D-2.21 to both at the same time.
 
+### Documentation & Knowledge Transfer (Area 7 — NEW, 2026-05-02 third amendment)
+
+This area captures the user's request for a teammate-readable design-system reference. The audience is a non-Claude reader (Tiago and 1–2 teammates) who needs to use the design system without reading the CSS source.
+
+- **D-2.25 (`ui/documentation.md` — NEW Phase 2 deliverable):** A single human-readable guide at `ui/documentation.md` (top-level folder, sibling of `app/`). Audience: Tiago + teammates. **Not** consumed by Claude tooling — it is a documentation artifact. Required sections:
+  1. **Overview** — paper-and-stamp aesthetic in two paragraphs; where the CSS lives (`app/brain/theme/theme.py`); how to load it (`inject_theme()` at top of every page); why two copies exist (`app/brain/theme/` vs `previews/_theme.py`).
+  2. **Token reference** — every CSS custom property from D-2.12 with one-line description and "use this when…" rule (e.g., `--paper-1` = "passive surface backdrop, used for unselected MCQ options, soft buttons, and stat-card backgrounds; never as a CTA fill").
+  3. **Typography hierarchy** — when to use `h1` vs `h2` vs `h3` vs `h4` vs `surf-eyebrow` vs `surf-caption` vs `surf-meta` vs `surf-empty-headline` vs `surf-empty-body`. Each line: page where it appears, CSS variable, example.
+  4. **Color combination rules** — explicit DO/DON'T pairs:
+     - DO use `--accent-vibrant` for the primary CTA on a page (one per page).
+     - DON'T use `--accent-vibrant` as a passive-surface fill (passive = use `--paper-0` or `--paper-1`).
+     - DO use `--ok-wash` for "this is the correct answer" on P5; DON'T use it elsewhere.
+     - DO use `--accent-soft` for "this is a wrong pick" on P5; DON'T use it as a hover state.
+     - DO use `--paper-0` to elevate a selected-but-not-yet-graded state (P4 active MCQ option); the elevation IS the selection signal.
+     - DON'T use accent colors during P4 to signal "selected" — that's reserved for P5 review.
+     - (List grows from D-2.20 + the rest of the Figma rules surfaced by D-2.26 analysis.)
+  5. **Component catalog** — one section per scoped-CSS component (`btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-{accent,ok,info,warn}`, `card-passive`, `card-interactive`, `class-card`, `stat-card`, `topbar`, `topbar-icon`, `empty`, `mcq-opt-{state}`, `mcq-card`, `difficulty-display`, etc.). Each section contains: 1-line description, the `st.container(key=…)` invocation pattern, all variants, and the rule of when to use it vs an alternative. Screenshot reference (path under `docs/design/figma_exports/`) where useful.
+  6. **Stamp shadow recipe** — the signature animation. One paragraph + the 3 offset scales (2/3/4px) + the hover-lift / press-sink rule (D-2.13). Why it's the signature. When NOT to use it (passive surfaces that don't accept clicks).
+  7. **Motion rules** — transitions only, no keyframes (D-2.14). The 3 timing tokens (`--t-fast` / `--t-base` / `--t-slow`) and when each applies. The `prefers-reduced-motion` accessibility note (D-2.15).
+  8. **DOM reach map** — for each Streamlit widget Phase 2 uses (`st.button`, `st.text_input`, `st.checkbox`, `st.radio`, `st.selectbox`, `st.slider`, `st.tabs`, `st.expander`, `st.status`, `st.dialog`, `st.file_uploader`, `st.sidebar`), the `data-testid` attribute that reaches it + which scoped wrapper key activates which variant. This is the most important section for teammates writing new pages — it tells them HOW to compose.
+  9. **Adding a new component** — a 5-step recipe: (a) wrap in `st.container(key="my-component-x")`, (b) add a section to `_CSS` in `theme.py` keyed on `[class*="st-key-my-component"]`, (c) refresh both copies (production + sandbox), (d) ship a preview in `previews/components/my_component/preview.py`, (e) document it here.
+  - **Length cap:** target ≤500 lines; split into siblings (`ui/tokens.md`, `ui/components.md`) only if the single file exceeds that. Same audience, same voice.
+  - **Edit-this-later note:** the doc is updated at the close of every phase that touches the design system (Phase 2 closes the bulk; Phases 3+ append). The plan-level cadence rule from D-5.2 (sidecar walkthroughs at end-of-wave) extends to this doc — every wave that adds a new scoped component appends a section here before the wave commits.
+
+- **D-2.26 (Figma component-logic analysis — NEW research step in plan 02-01):** Before `theme.py` ships to `app/brain/theme/`, plan 02-01 spawns a researcher pass that walks the Figma file (file key `EYjkvHArrBonuiG2JUS2sE`) and extracts the **rules of use** that aren't visible from a single component's spec — they live across pages, in Figma component descriptions, and in the relationships between components. Output feeds the "Color combination rules" and "Component catalog" sections of `ui/documentation.md`.
+  - **Method:**
+    1. `mcp__dd11b50e-…__get_metadata` on the file root (page `0:1`) to enumerate every page and frame.
+    2. `mcp__dd11b50e-…__search_design_system` for `Button`, `Card`, `Chip`, `Display`, `Container`, `Foundation`, `Status` — capture every component's variants + Figma component description (`(canonical) — pick by rule-book §X.Y` notes are the ground truth for use rules).
+    3. `mcp__dd11b50e-…__get_design_context` on each "in-use" frame for Phase 2 pages (P1–P5 wireframes if they exist in the file; otherwise sample 3–5 frames that compose multiple components) — this surfaces composition rules that single-component inspection misses.
+    4. `mcp__dd11b50e-…__get_variable_defs` on a representative frame to dump the variable taxonomy (color/Base/*, color/Accent/*, etc.) — this validates the D-2.12 token list against Figma's source of truth.
+  - **Cap on tool calls:** ≤30 Figma MCP calls total (the file is medium-sized; 30 is enough to exhaust the high-value frames without burning context). Researcher agent saves a per-component JSONL log to `.planning/phases/02-mock-taking-loop-p1-p5/_research/figma_components.jsonl` for traceability.
+  - **Open question to resolve during analysis:** Tiago noted in D-2.1 that the library is `SURF_UI(old)` — researcher must check Tiago's Figma teams for a non-`(old)` revision and reconcile any token drift before locking the production `theme.py`. Use `mcp__dd11b50e-…__search_design_system` with query `SURF_UI` and inspect each match's `library_key`.
+  - **Output:**
+    1. `ui/documentation.md` — written by the researcher (filling the stub created in this discuss pass).
+    2. Reconciliation patches to `02-CONTEXT.md` D-2.12 (token taxonomy) if Figma revision drift is found — append a "Drift" subsection, do not overwrite.
+    3. New scoped components added to `theme.py` with their own `[class*="st-key-{name}"]` selectors if the analysis surfaces components used by Phase 2 pages but missing from the current `theme.py` (likely candidates: summary banner for P5, sidebar list pattern for P3, file-uploader skin for P2, dialog skin for the API-key-validate confirm).
+  - **Edit-this-later note:** the researcher prompt template lives at `.planning/phases/02-mock-taking-loop-p1-p5/_research/figma_logic_research_prompt.md` (created by plan 02-01). Re-running the researcher (e.g., when the Figma library is revised) just edits the prompt and re-spawns.
+
 ### Reconciliation with prior decisions (2026-05-02 amendment)
 
 | Prior decision | Status | Reason |
@@ -298,6 +336,9 @@ These are NOT decided here — the widget-catalog researcher and planner pick:
 ### Figma frame screenshots (local cache, supplements live Figma file)
 - `docs/design/figma_exports/node_25-2.png` — Components page (existing).
 - `docs/design/figma_exports/node_4045-282_mcq_take_mock.png` — Take Mock card across 3 states (Unanswered / Answered / Checked). Canonical reference for D-2.20 (MCQ option), D-2.23 (card container), D-2.24 (difficulty stars).
+
+### Team-facing design-system documentation (NEW deliverable, D-2.25)
+- `ui/documentation.md` — single human-readable guide for Tiago + teammates. Structure scaffolded as a stub during this discuss pass; filled by plan 02-01's researcher (D-2.26) and the wave closures that add new scoped components. Audience: non-Claude reader who wants to use the design system without reading the CSS source.
 
 ### Existing code (already shipped — patterns to follow + integrate with)
 - `app/brain/claude_client/claude_client.py` — single shared Anthropic wrapper. Used by P1 to validate API key (a `client.messages.create` with `max_tokens=1` against the user-entered key).
