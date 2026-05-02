@@ -351,11 +351,18 @@ p.surf-score {
 
 /* =========================================================
    STAT CARD
+   Fixed minimum height so a 1-digit value and a longer label render the
+   same card height (no content-hugging). Flex column distributes the
+   eyebrow / label / big-italic-value / optional-delta vertically.
    ========================================================= */
 [class*="st-key-stat-card"] {
   background: var(--paper-0); border: 1.5px solid var(--paper-3);
   border-radius: var(--r-md); padding: 14px 18px;
   box-shadow: 2px 2px 0 0 var(--paper-shadow-soft);
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 [data-testid="stMarkdownContainer"] p.surf-stat-value,
 p.surf-stat-value {
@@ -412,10 +419,17 @@ p.surf-stat-value {
 
 /* =========================================================
    TOPBAR
+   EXCEPTION to the symmetric-padding rule (Defect 3 sweep, 2026-05-02):
+   the bottom of the topbar IS the separator line, not breathing room,
+   so `padding: 14px 4px 0 4px` is intentional. The 2 px `border-bottom`
+   sits flush against the bottom edge of the icon-button rectangle (per
+   Defect 4d, Tiago 2026-05-02). Do NOT normalize to symmetric padding
+   here — that would re-introduce the gap between icon-button bottom
+   and separator that Tiago flagged.
    ========================================================= */
 [class*="st-key-topbar"] {
   border-bottom: 2px solid var(--paper-5);
-  padding: 14px 4px 12px 4px; margin-bottom: 32px;
+  padding: 14px 4px 0 4px; margin-bottom: 32px;
 }
 .surf-brand {
   font-family: var(--serif); font-style: italic; font-weight: 600;
@@ -427,12 +441,43 @@ p.surf-stat-value {
   color: var(--paper-3); margin: 0; padding-top: 4px;
 }
 .surf-breadcrumb strong { color: var(--paper-5); font-weight: 700; }
+/* 4a: icon glyph bumped from 16 px → 22 px so it dominates the button
+   visually. 4b: flex-centred (BaseWeb wraps the label in a <p>; we
+   centre the inner <p> by flex-aligning the button itself). */
 [class*="st-key-topbar-icon"] [data-testid="stButton"] button {
   width: 38px; height: 38px; padding: 0;
   background: transparent; color: var(--paper-5);
   border: 1.5px solid var(--paper-4); box-shadow: none;
   border-radius: var(--r-sm);
-  font-family: var(--serif); font-size: 16px;
+  font-family: var(--serif); font-size: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none;
+  line-height: 1;
+}
+/* 4b (continued): the inner <p> that BaseWeb renders carries its own
+   line-height; reset it and force the glyph to inherit the bumped
+   font-size from the button so the icon really is centred + 22 px. */
+[class*="st-key-topbar-icon"] [data-testid="stButton"] button p {
+  font-family: var(--serif) !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+}
+/* 4c: kill the per-button underline. Streamlit's BaseWeb button paints
+   a 1 px focus/active line at the bottom of the rectangle; we strip it
+   wherever it appears inside a topbar-icon wrapper. Belt-and-braces:
+   text-decoration on the button + on its inner <a>/<p>/<span>, and
+   border-bottom: 0 on the button so any baseweb pseudo-element is
+   masked. */
+[class*="st-key-topbar-icon"] [data-testid="stButton"] button,
+[class*="st-key-topbar-icon"] [data-testid="stButton"] button *,
+[class*="st-key-topbar-icon"] [data-testid="stButton"] a {
+  text-decoration: none !important;
+  border-bottom-width: 0 !important;
 }
 [class*="st-key-topbar-icon"] [data-testid="stButton"] button:hover {
   background: var(--paper-1); transform: none; box-shadow: 2px 2px 0 0 var(--paper-shadow-soft);
@@ -440,6 +485,10 @@ p.surf-stat-value {
 
 /* =========================================================
    EMPTY STATE
+   Flex column with both-axis centring so the ornament + headline + body
+   + CTA stack centres horizontally AND vertically inside the dashed
+   frame. text-align: center handles the markdown-rendered <p>s; the
+   flex centring catches non-text children (e.g. button containers).
    ========================================================= */
 [class*="st-key-empty"] {
   background: var(--paper);
@@ -447,9 +496,22 @@ p.surf-stat-value {
   border-radius: var(--r-md);
   padding: 36px 28px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 [class*="st-key-empty"] [data-testid="stMarkdownContainer"] p {
   text-align: center;
+}
+/* Inner Streamlit blocks (which wrap each child of the container) need
+   to centre their own children too, otherwise a button rendered via
+   `st.container(key="btn-default-…")` inside the empty state sits
+   left-aligned. */
+[class*="st-key-empty"] [data-testid="stVerticalBlock"],
+[class*="st-key-empty"] [data-testid="stHorizontalBlock"] {
+  align-items: center;
+  width: 100%;
 }
 [data-testid="stMarkdownContainer"] p.surf-empty-headline,
 p.surf-empty-headline {
@@ -510,6 +572,11 @@ p.surf-caption {
    MCQ CARD CONTAINER (D-2.23, Figma node 4045:282)
    The wrapper that holds the Q-number + class chip + difficulty stars
    header, the question text, the option stack, and the action row.
+   EXCEPTION to the symmetric-padding rule (Defect 3 sweep, 2026-05-02):
+   the 22/20/20/20 padding is the locked Figma value for the production
+   card built in plan 02-05 (P4 Take Mock). Do NOT normalize to 20px
+   symmetric here — that decision is deferred to 02-05 along with the
+   full card geometry (5-star difficulty slot + rationale + 3 actions).
    ========================================================= */
 [class*="st-key-mcq-card"] {
   background: var(--paper);
@@ -535,7 +602,14 @@ p.surf-caption {
 /* Hide Streamlit's native checkbox glyph; we draw our own. */
 [class*="st-key-mcq-opt-"] [data-testid="stCheckbox"] svg { display: none; }
 
-/* Base wrapper — visual frame, padding, transitions. */
+/* Base wrapper — visual frame, padding, transitions.
+   Off↔On animates: background, border-color, border-width (1→2 px),
+   box-shadow (none→stamp), and padding (13/14 → 14/15) all tween on the
+   --t-fast (120 ms) clock so the click feels animated, not snap-instant.
+   Correct/Incorrect arrive on submit (no hover/click trigger — applied
+   by the wrapper key on render); the same transitions tween them on
+   first paint, which is fine. The reduced-motion media query at the
+   bottom of _CSS zeros these out. */
 [class*="st-key-mcq-opt-"] {
   position: relative;
   border-radius: 5px;
@@ -544,7 +618,8 @@ p.surf-caption {
   color: var(--paper-5);
   cursor: pointer;
   transition: background-color var(--t-fast), border-color var(--t-fast),
-              box-shadow var(--t-fast), padding var(--t-fast);
+              border-width var(--t-fast), box-shadow var(--t-fast),
+              padding var(--t-fast);
 }
 
 /* Force the inner checkbox label to inherit the wrapper colors and pad
