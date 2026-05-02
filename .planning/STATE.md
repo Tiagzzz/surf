@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered (02-CONTEXT.md written, 19 decisions across 5 areas)
-last_updated: "2026-05-02T09:43:39.022Z"
-last_activity: 2026-05-01 -- Phase 1 verification PASS + NotebookLM write-back to Idea & Progress notebook
+stopped_at: Phase 2 CONTEXT amended (Area 6 Branding & Visual Language — D-2.12..D-2.22 — added after parallel-session audit; plan 02-01 needs re-plan to fold in branding decisions)
+last_updated: "2026-05-02T13:55:00.000Z"
+last_activity: 2026-05-02 -- Phase 2 context amendment + Streamlit_Test parallel-session audit (02-PARALLEL-AUDIT.md written)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 5
+  total_plans: 13
   completed_plans: 5
-  percent: 100
+  percent: 38
 ---
 
 # Project State
@@ -21,14 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Pass the grade (≥16/24) AND deliver Idea v1 vision (7-page flow, eager MCQ generation, 6-feature ML difficulty model) by 2026-05-14.
-**Current focus:** Phase 1 — Ingestion Spine + Database
+**Current focus:** Phase 2 — Mock Taking Loop (P1–P5) — context amended, plan 02-01 needs re-plan
 
 ## Current Position
 
-Phase: 1 (Ingestion Spine + Database) — ✅ COMPLETE (2026-05-01)
-Plan: 5 of 5 done (01-01 SQLite spine, 01-02 PDF markers + page_splitter, 01-03 LO extractor, 01-04 MCQ generator, 01-05 orchestrator + smoke)
-Status: Phase 1 verified (PASS). Phase 2 (Mock Taking Loop, P1–P5) is next; planning blocked on user-provided FigJam visualization spec for end-of-phase deliverable.
-Last activity: 2026-05-01 -- Phase 1 verification PASS + NotebookLM write-back to Idea & Progress notebook
+Phase: 2 (Mock Taking Loop, P1–P5) — 🟡 PLANNING (CONTEXT amended 2026-05-02)
+Plans: 8 written, 0 done — plan 02-01 (theme + tokens + previews/ scaffold) needs re-plan to fold in Area 6 branding decisions (D-2.12..D-2.22) from the parallel-session audit. Plans 02-02..02-07 unaffected by this amendment.
+Wave map (unchanged): W1 (01) → W2 (02, 03) → W3 (04a) → W4 (04b, 05) → W5 (06) → W6 (07)
+- 02-01: Theme + tokens + previews/ scaffold + Wave-1 spikes (Q1–Q4, Q8) + Phase 1 sidecar back-fill
+- 02-02: P1 Sign Up + signup_flow + api_key_validate + queries_users
+- 02-03: P2 My Classes + Add Class flow (wires shipped factsheet_clean)
+- 02-04a: Backend — DB query upgrades + queries_attempts + build_mock + practice_mock + study_next + REQUIREMENTS amend
+- 02-04b: P3 Class hub UI + lecture_upload (with progress_callback) + class_view wiring + 4 sandboxes
+- 02-05: P4 Take Mock + fragment timer + UPSERT-on-nav + UNIQUE constraint amendment
+- 02-06: P5 Review Mock + summary banner + grading_formula extraction
+- 02-07: E2E AppTest P1→P5 + sidecar audit + final visual sweep
+Status: 02-CONTEXT.md amended with Area 6 (Branding & Visual Language) — D-2.12 token taxonomy, D-2.13 stamp-shadow recipe, D-2.14 transitions-only motion (drops D-2.3 fade-in), D-2.15 prefers-reduced-motion, D-2.16 Google Fonts loading, D-2.17 Python-module theme delivery (amends D-2.1), D-2.18 scoping pattern, D-2.19 Python helper primitives, D-2.20 multi-correct MCQ styling, D-2.21 st.status + st.expander skins, D-2.22 sandbox/production drift. Sibling 02-PARALLEL-AUDIT.md written. Plan 02-01 needs re-plan; plans 02-02..02-07 untouched by this amendment.
+Last activity: 2026-05-02 -- Phase 2 context amendment + Streamlit_Test parallel audit
 
 Phase 1 progress: [██████████] 100%
 Overall (1/5 phases): [██░░░░░░░░] 20%

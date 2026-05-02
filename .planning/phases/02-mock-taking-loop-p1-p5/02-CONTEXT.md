@@ -1,7 +1,10 @@
 # Phase 2: Mock Taking Loop (P1–P5) - Context
 
 **Gathered:** 2026-05-02
-**Status:** Ready for planning (after widget-catalog research step — see locked sequence below)
+**Amended:** 2026-05-02 (Branding & Visual Language area added — Area 6 — after parallel-session audit of `/Streamlit_Test/`)
+**Status:** Plans 02-01..02-07 already written; this amendment requires a re-plan run on plan 02-01 (theme + tokens) to fold in the new branding decisions. Plans 02-02..02-07 are unaffected by this amendment except for one canonical-refs addition (the new audit doc).
+
+> **Parallel-session audit:** see `02-PARALLEL-AUDIT.md` (sibling) for the full good/bad/reusable/discard verdict on `/Streamlit_Test/`. **Bottom line:** the parallel session shipped a production-grade design system that supersedes the planned Wave-1 Q1 "Figma extraction" spike — Q1 becomes a *validation* step, not extraction. Three amendments required (`prefers-reduced-motion`, multi-correct checkbox styling, `st.expander`+`st.status` skins).
 
 <domain>
 ## Phase Boundary
@@ -112,6 +115,72 @@ Out of scope (other phases):
 
 - **C-22 flex note:** Adding `## Code walkthrough` sections may push some sidecars over the 100-line cap. The cap is allowed to flex up to ~140 lines when the walkthrough section is present. C-22 audit will be revisited at end of Phase 2.
 
+### Branding & Visual Language (Area 6 — NEW, 2026-05-02 amendment)
+
+This area was added after the parallel-session audit (`02-PARALLEL-AUDIT.md`). It locks the **specific** branding values that earlier areas left to "Claude's Discretion" + widget-catalog research. The seed for every decision below is `/Users/tiagoreimann/surf/Streamlit_Test/ui/theme.py` (598 lines, audited as production-grade).
+
+- **D-2.12 (Token taxonomy — LOCKED):** CSS custom properties at `:root`, sourced from `theme.py`:
+  - **Paper ladder (warm cream → charcoal):** `--paper #fdf9f2`, `--paper-0 #f5efe4`, `--paper-1 #ede4d2`, `--paper-2 #c0b49b`, `--paper-3 #6c6455`, `--paper-4 #3b362c`, `--paper-5 #28251f`, `--paper-shadow #171512`, `--paper-shadow-soft #1a1814`, `--white #ffffff`.
+  - **Accent (Surf red):** `--accent-vibrant #c8361d`, `--accent-deep #9d2815`, `--accent-soft #e8a798`, `--accent-wash #f7d9d1`.
+  - **Status:** `--ok #2d6a3f`, `--ok-wash #9ec7aa`, `--warn #b8860b`, `--info #2a5d7c`.
+  - **Radii:** `--r-xs 3px`, `--r-sm 4px`, `--r-md 6px`, `--r-lg 10px`, `--r-pill 999px`.
+  - **Motion:** `--ease cubic-bezier(0.2, 0, 0, 1)`, `--t-fast 120ms`, `--t-base 180ms`, `--t-slow 320ms`.
+  - **Type:** `--serif 'Fraunces', Georgia, serif`, `--mono 'JetBrains Mono', Menlo, monospace`.
+  - **Edit-this-later note:** all values live at the top of `_CSS` in `app/brain/theme/theme.py`. To re-tone the brand, edit the custom property; every component re-themes automatically.
+
+- **D-2.13 (Stamp-shadow recipe — LOCKED, this is the signature visual move):** Hard-edged offset shadow with `border-radius: 0` on the shadow itself. Three offset scales:
+  - **3px** for default & tinted buttons, class card, interactive card (rest state).
+  - **4px** for interactive card hover (lifted state).
+  - **2px** for soft button, passive card, stat card.
+  - **Hover:** `transform: translate(-1px, -1px)` + shadow grows by 1px.
+  - **Press (`:active`):** `transform: translate(2px, 2px)` + shadow shrinks to 1px.
+  - **Disabled:** shadow removed entirely; surface = `--paper-2`, text = `--paper-3`.
+  - **Edit-this-later note:** the shadow/transform pairs live next to each component selector in `theme.py`. To soften the stamp, change shadow color from `--paper-shadow` to `--paper-shadow-soft` per-component or globally.
+
+- **D-2.14 (Animation primitives — LOCKED, replaces D-2.3 fade-in):** **Transitions only — no `@keyframes`.** Hover/press states animate via CSS `transition` on `transform`, `box-shadow`, `background-color`, `color`, `border-color`, `filter`. Durations follow the motion tokens: 120ms (button feedback), 180ms (cards, tabs), 320ms (rare slow elements). The earlier D-2.3 plan to add a "gentle fade-in on Cards via @keyframes" is **dropped** — Streamlit reruns top-to-bottom on every interaction, and a fade-in keyframe would re-trigger on every rerun, creating busy flicker. Stamp-shadow hover is the signature; that is enough character. **Edit-this-later note:** to add motion intensity scaling, introduce a `--surf-motion-scale` custom property at `:root` and multiply transition durations by it (defer until requested).
+
+- **D-2.15 (Accessibility — `prefers-reduced-motion`, NEW vs theme.py):** Append a `@media (prefers-reduced-motion: reduce)` block at the bottom of `_CSS` that sets `transition: none !important` and `transform: none !important` on all interactive surfaces (buttons, cards, MCQ option, slider thumb). ~6 lines. **Edit-this-later note:** the block lives at the bottom of `_CSS` so it overrides everything above.
+
+- **D-2.16 (Font loading strategy — LOCKED):** Google Fonts via CSS `@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap')` at the top of `_CSS`. The `.streamlit/config.toml` `[theme] font` field stays at `"serif"` as a fallback for Streamlit-native widgets that read the family before CSS binds. **Self-hosting is deferred** to a future phase (would require `assets/fonts/` + `@font-face` declarations) — acceptable cost is one network round-trip on first paint.
+  - **Edit-this-later note:** if grader-machine offline reproducibility becomes a hard constraint, see `02-PARALLEL-AUDIT.md` § "Bad/needs adjustment #7" for the self-hosting recipe.
+
+- **D-2.17 (Theme delivery mechanism — LOCKED, AMENDS D-2.1):** The CSS lives **embedded as a string constant in a Python module** — `app/brain/theme/theme.py` for production, `previews/_theme.py` for the sandbox. Both expose `inject_theme()` which calls `st.markdown(_CSS, unsafe_allow_html=True)`. This **supersedes** D-2.1's earlier wording ("single scoped-CSS file at `app/brain/theme/surf_theme.css`"). Rationale: one importable module is simpler than path-resolved file reads, and the parallel session already validated it.
+  - **Edit-this-later note:** if the CSS string ever exceeds ~800 lines (currently ~480), split into `theme.py` + `theme.css` with a one-line `_CSS = (Path(__file__).with_name("theme.css")).read_text()` swap. The module API stays the same.
+
+- **D-2.18 (Scoping pattern — LOCKED):** Component-level styling is reached via `[class*="st-key-XXX"]` selectors targeting wrappers created by `st.container(key="XXX")`. Widgets inside the wrapper are reached via stable `data-testid` attributes (`stButton`, `stTextInput`, `stSelectbox`, `stCheckbox`, `stRadio`, `stTextArea`, `stNumberInput`, `stSlider`, `stDateInput`, `stTimeInput`, `stToggle`, `stMultiSelect`, `stAlertContainer`, `stMarkdownContainer`). Markdown-rendered HTML helpers (`<p class="surf-eyebrow">`, `<p class="surf-meta">`, etc.) target their own custom classes. **No `unsafe_allow_html=True` for layout** — only for typography helpers. **No JS injection.**
+  - **Edit-this-later note:** the canonical key vocabulary used in `theme.py` (`btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-{accent,ok,info,warn}`, `card-passive`, `card-interactive`, `class-card`, `stat-card`, `topbar`, `topbar-icon`, `empty`, `mcq`) MUST be reused verbatim by both production and sandbox code. Drift breaks the scoped CSS silently.
+
+- **D-2.19 (Python helper primitives — LOCKED):** Ship the 9 helpers from `theme.py` verbatim in both `app/brain/theme/theme.py` and `previews/_theme.py`: `inject_theme()`, `eyebrow(text)`, `caption(text)`, `meta(text)`, `score(value: float)`, `chip(text, variant)`, `chips_row(items)`, `steps(items)`, `stat_card(label, value, eyebrow_text, delta, delta_dir)`, `empty_state_text(headline, body)`. Each is 1–10 lines, pure, no state, no Claude/DB calls. **User-supplied strings must be HTML-escaped** before f-string interpolation (current theme.py does NOT escape — plan 02-01 must add `html.escape()` calls). The `score()` color thresholds (red <3.5, gold 3.5–<5, green ≥5) directly match the Swiss 1–6 grading formula `5 × correct/max + 1` from D-3.4 — reused on P5 final-note (D-4.1) and P2 class card.
+  - **Edit-this-later note:** all helpers live in the `# Helper components` section at the bottom of `theme.py`. To add a new HTML primitive, follow the 1-liner pattern: `def name(text): st.markdown(f'<p class="surf-name">{html.escape(text)}</p>', unsafe_allow_html=True)`.
+
+- **D-2.20 (Multi-correct MCQ styling — NEW, closes Phase 1 D-2.5 gap):** `theme.py` styles `[class*="st-key-mcq"] [role="radiogroup"] > label` only — covers single-correct radio. Phase 1 D-2.5 locked `correct_indices` as a LIST → multi-correct questions render as `st.checkbox` group. **Plan 02-01 must extend the `st-key-mcq*` block** to also style `[data-testid="stCheckbox"] label` (selected via `:has(input:checked)`, hover via `:hover`, with the same accent-wash background + accent-vibrant border + 2px stamp-shadow recipe used for radio). Question_render in `app/mock_take/question_render/` must wrap multi-correct questions in `st.container(key="mcq-q{question_id}")` so the scoping reaches both variants uniformly.
+  - **Edit-this-later note:** the multi-correct selector lives directly below the radio selector in `_CSS`. To switch back to a single-style approach, merge the two selector lists.
+
+- **D-2.21 (`st.status` + `st.expander` skins — NEW vs theme.py, closes ingestion + review-density gaps):** Two Streamlit-native components used by Phase 2 are currently unstyled:
+  - **`st.status`** (P3 ingestion log per D-2.6): paper-0 background, 1.5px paper-3 border, accent-vibrant left-border (3px) when running, ok left-border when complete, accent-vibrant left-border when error. Eyebrow-style label (mono, uppercase, tracked).
+  - **`st.expander`** (P5 difficulty breakdown per D-4.2): paper-1 background closed, paper-0 open, mono+uppercase header with caret, 2px stamp-shadow on hover.
+  - **Edit-this-later note:** both selectors go in a new section near the bottom of `_CSS` titled `STATUS · EXPANDER`. Reach via `[data-testid="stStatusWidget"]` and `[data-testid="stExpander"]`.
+
+- **D-2.22 (Reconciliation with sandbox-isolation rule):** Two copies of the design system exist by deliberate design:
+  - **Production:** `app/brain/theme/theme.py` — imported by `streamlit_app.py` and every `views/<page>.py`.
+  - **Sandbox:** `previews/_theme.py` — imported by every `previews/components/<x>/preview.py` and `previews/pages/<x>/preview.py`.
+  - Sandboxes **must NOT `from app...` import** the production theme. The drift between the two copies is intentional — when production theme.py changes, the next visual task on a sandbox refreshes the sandbox copy and re-runs the preview gate (per `CLAUDE.md` Visual Preview Gate § "Sandbox rules").
+  - **Edit-this-later note:** the migration step in plan 02-01 copies `Streamlit_Test/ui/theme.py` → both destinations and applies amendments D-2.15, D-2.20, D-2.21 to both at the same time.
+
+### Reconciliation with prior decisions (2026-05-02 amendment)
+
+| Prior decision | Status | Reason |
+|---|---|---|
+| **D-2.1** (visual identity, theme delivery) | **Amended by D-2.17** | "Single scoped-CSS file at `app/brain/theme/surf_theme.css`" → "Embedded `_CSS` string in `app/brain/theme/theme.py`". Token list in D-2.1 is now superseded by the explicit hex values in D-2.12. |
+| **D-2.2** (light only) | Unchanged | `[theme] base = "light"` still correct. config.toml in `Streamlit_Test/` confirms. |
+| **D-2.3** (subtle motion incl. fade-in) | **Amended by D-2.14** | Fade-in keyframe dropped. Hover/press transitions only. |
+| **D-2.4** (roomy whitespace) | Unchanged | Card padding 18–24px in `theme.py` is consistent. Plan 02-01 keeps the 8-pt scale assertion. |
+| **D-2.5..D-2.11** (page-flow UX) | Unchanged | No conflicts with branding work. |
+| **D-3.1..D-3.5** (P4 runtime) | Unchanged | D-3.5 difficulty placeholder character (`—`) renders correctly with the locked typography. |
+| **D-4.1..D-4.3** (P5 review) | Unchanged | `score()` helper in D-2.19 directly drives the D-4.1 summary banner. |
+| **D-5.1..D-5.3** (sidecars) | Unchanged | Theme module gets a sidecar like every other script. |
+| **Folded todo** (widget-catalog research) | **Resolved early** | The parallel session produced what `02-WIDGETS.md` was supposed to produce. Plan 02-01's Wave-1 Q1 "Figma extraction spike" → restructured as "validate `theme.py` against Figma + check for `SURF_UI` non-`(old)` revision". |
+
 ### Claude's Discretion
 
 These are NOT decided here — the widget-catalog researcher and planner pick:
@@ -155,9 +224,15 @@ These are NOT decided here — the widget-catalog researcher and planner pick:
 - `docs/handoff_2026-04-30_gsd_planning/01_idea_v1_state.md` — handoff snapshot (gitignored, local).
 
 ### Design source of truth (Phase 2 — NEW)
-- `https://www.figma.com/design/EYjkvHArrBonuiG2JUS2sE/SURF_UI?node-id=25-2` — **the visual reference.** Components: `Button / Default | Soft | Ghost | Accent | Disabled`, `Container / Card`, `Container / Card Interactive`. Tokens: 6-step Paper ladder, 3-tone Accent (Soft/Deep/Wash), Status/OK/Warn/Info, `Mono/Button Label`. Library is named `SURF_UI(old)` — research step should check for a newer revision.
-- `docs/design/figma_exports/` — local PNG export(s) of the Figma. Currently contains `node_25-2.png` (the Components page). The widget-catalog researcher should pull more frame screenshots via `mcp__claude_ai_Figma__get_screenshot` (URL-based, no desktop selection needed).
+- `https://www.figma.com/design/EYjkvHArrBonuiG2JUS2sE/SURF_UI?node-id=25-2` — **the visual reference.** Components: `Button / Default | Soft | Ghost | Accent | Disabled`, `Container / Card`, `Container / Card Interactive`. Tokens: 6-step Paper ladder, 3-tone Accent (Soft/Deep/Wash), Status/OK/Warn/Info, `Mono/Button Label`. Library is named `SURF_UI(old)` — plan 02-01 Wave-1 (now a validation step, not extraction) checks for a newer revision.
+- `docs/design/figma_exports/` — local PNG export(s) of the Figma. Currently contains `node_25-2.png` (the Components page). Additional frame screenshots can be pulled via `mcp__dd11b50e-…__get_screenshot` (URL-based, no desktop selection needed).
 - `/Users/tiagoreimann/surf/SURF_UI.fig` — local `.fig` file as offline fallback (binary, not directly parseable; relies on Figma to render).
+
+### Parallel-session output (2026-05-02 amendment — supersedes Wave-1 Q1 extraction spike)
+- **`02-PARALLEL-AUDIT.md`** (sibling) — full good/bad/reusable/discard verdict on `/Streamlit_Test/`. **Read before plan 02-01 work.**
+- `/Users/tiagoreimann/surf/Streamlit_Test/ui/theme.py` — production-grade scoped-CSS design system (598 lines). Seed for `app/brain/theme/theme.py` (production) AND `previews/_theme.py` (sandbox). Two copies, drift is a feature per CLAUDE.md.
+- `/Users/tiagoreimann/surf/Streamlit_Test/test_components.py` — working sandbox showing every component composed. Seed for `previews/components/_theme_bench/preview.py`.
+- `/Users/tiagoreimann/surf/Streamlit_Test/.streamlit/config.toml` — Streamlit native `[theme]` block mirroring the CSS tokens. Seed for project-root `.streamlit/config.toml` (D-2.2 light + D-2.12 token values).
 
 ### Existing code (already shipped — patterns to follow + integrate with)
 - `app/brain/claude_client/claude_client.py` — single shared Anthropic wrapper. Used by P1 to validate API key (a `client.messages.create` with `max_tokens=1` against the user-entered key).
