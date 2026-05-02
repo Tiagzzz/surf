@@ -141,8 +141,22 @@ This area was added after the parallel-session audit (`02-PARALLEL-AUDIT.md`). I
 
 - **D-2.15 (Accessibility — `prefers-reduced-motion`, NEW vs theme.py):** Append a `@media (prefers-reduced-motion: reduce)` block at the bottom of `_CSS` that sets `transition: none !important` and `transform: none !important` on all interactive surfaces (buttons, cards, MCQ option, slider thumb). ~6 lines. **Edit-this-later note:** the block lives at the bottom of `_CSS` so it overrides everything above.
 
-- **D-2.16 (Font loading strategy — LOCKED):** Google Fonts via CSS `@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap')` at the top of `_CSS`. The `.streamlit/config.toml` `[theme] font` field stays at `"serif"` as a fallback for Streamlit-native widgets that read the family before CSS binds. **Self-hosting is deferred** to a future phase (would require `assets/fonts/` + `@font-face` declarations) — acceptable cost is one network round-trip on first paint.
-  - **Edit-this-later note:** if grader-machine offline reproducibility becomes a hard constraint, see `02-PARALLEL-AUDIT.md` § "Bad/needs adjustment #7" for the self-hosting recipe.
+- **D-2.16 (Font loading strategy — LOCKED, self-hosted, 2026-05-02 second amendment):** Fonts ship **self-hosted** in `assets/fonts/`. Three variable WOFF2 files (~190 KB total, latin subset only):
+  - `assets/fonts/Fraunces-normal-400_900.woff2` (67 KB) — Fraunces upright, weight axis 400–900.
+  - `assets/fonts/Fraunces-italic-400_900.woff2` (82 KB) — Fraunces italic, weight axis 400–900.
+  - `assets/fonts/JetBrainsMono-Variable.woff2` (40 KB) — JetBrains Mono, weight axis 100–800.
+  - Declared via `@font-face` at the top of `_CSS` (replacing the earlier Google Fonts `@import`). Recipe (paste into `theme.py` `_CSS`):
+    ```css
+    @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 400 900;
+      src: url('assets/fonts/Fraunces-normal-400_900.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: 'Fraunces'; font-style: italic; font-weight: 400 900;
+      src: url('assets/fonts/Fraunces-italic-400_900.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800;
+      src: url('assets/fonts/JetBrainsMono-Variable.woff2') format('woff2'); font-display: swap; }
+    ```
+  - **Streamlit-specific path note:** Streamlit serves files from the working directory; for the URL above to resolve, the app must be launched from the repo root (where `assets/` lives). If launched from elsewhere, swap to absolute paths via `Path(__file__).parent / "assets" / "fonts" / ...` resolved at module load and inlined as `data:font/woff2;base64,...` URIs in `_CSS`. Plan 02-01 picks the simpler path (relative URLs assuming repo-root launch) and documents the alternative as an edit-this-later note.
+  - **Axis coverage limitation:** the downloaded files include `wght` (and `ital` via the family-style split) only. The Figma library uses `fontVariationSettings: 'SOFT' 0, 'WONK' 1` for the wonky italic forms (visible in node 4045:282 question text). The current files render the conservative italic — visually close but not pixel-identical. **Edit-this-later note:** to match Figma exactly, re-fetch from Google Fonts CSS2 API with the full axis query `Fraunces:ital,opsz,wght,SOFT,WONK@...` (User-Agent header required for WOFF2 delivery) and apply `font-variation-settings: 'SOFT' 0, 'WONK' 1` on the `:root` selector.
+  - **`.streamlit/config.toml` `[theme] font` field** stays at `"serif"` as a fallback for any Streamlit-native widget that paints before the CSS binds.
 
 - **D-2.17 (Theme delivery mechanism — LOCKED, AMENDS D-2.1):** The CSS lives **embedded as a string constant in a Python module** — `app/brain/theme/theme.py` for production, `previews/_theme.py` for the sandbox. Both expose `inject_theme()` which calls `st.markdown(_CSS, unsafe_allow_html=True)`. This **supersedes** D-2.1's earlier wording ("single scoped-CSS file at `app/brain/theme/surf_theme.css`"). Rationale: one importable module is simpler than path-resolved file reads, and the parallel session already validated it.
   - **Edit-this-later note:** if the CSS string ever exceeds ~800 lines (currently ~480), split into `theme.py` + `theme.css` with a one-line `_CSS = (Path(__file__).with_name("theme.css")).read_text()` swap. The module API stays the same.
@@ -153,8 +167,49 @@ This area was added after the parallel-session audit (`02-PARALLEL-AUDIT.md`). I
 - **D-2.19 (Python helper primitives — LOCKED):** Ship the 9 helpers from `theme.py` verbatim in both `app/brain/theme/theme.py` and `previews/_theme.py`: `inject_theme()`, `eyebrow(text)`, `caption(text)`, `meta(text)`, `score(value: float)`, `chip(text, variant)`, `chips_row(items)`, `steps(items)`, `stat_card(label, value, eyebrow_text, delta, delta_dir)`, `empty_state_text(headline, body)`. Each is 1–10 lines, pure, no state, no Claude/DB calls. **User-supplied strings must be HTML-escaped** before f-string interpolation (current theme.py does NOT escape — plan 02-01 must add `html.escape()` calls). The `score()` color thresholds (red <3.5, gold 3.5–<5, green ≥5) directly match the Swiss 1–6 grading formula `5 × correct/max + 1` from D-3.4 — reused on P5 final-note (D-4.1) and P2 class card.
   - **Edit-this-later note:** all helpers live in the `# Helper components` section at the bottom of `theme.py`. To add a new HTML primitive, follow the 1-liner pattern: `def name(text): st.markdown(f'<p class="surf-name">{html.escape(text)}</p>', unsafe_allow_html=True)`.
 
-- **D-2.20 (Multi-correct MCQ styling — NEW, closes Phase 1 D-2.5 gap):** `theme.py` styles `[class*="st-key-mcq"] [role="radiogroup"] > label` only — covers single-correct radio. Phase 1 D-2.5 locked `correct_indices` as a LIST → multi-correct questions render as `st.checkbox` group. **Plan 02-01 must extend the `st-key-mcq*` block** to also style `[data-testid="stCheckbox"] label` (selected via `:has(input:checked)`, hover via `:hover`, with the same accent-wash background + accent-vibrant border + 2px stamp-shadow recipe used for radio). Question_render in `app/mock_take/question_render/` must wrap multi-correct questions in `st.container(key="mcq-q{question_id}")` so the scoping reaches both variants uniformly.
-  - **Edit-this-later note:** the multi-correct selector lives directly below the radio selector in `_CSS`. To switch back to a single-style approach, merge the two selector lists.
+- **D-2.20 (MCQ option design — REPLACED with Figma node `4045:282` canonical spec, 2026-05-02 second amendment):** `theme.py`'s current MCQ design (radio styled as paper card, accent-wash + accent-vibrant on hover/select) is **wrong** and must be discarded. The canonical design comes from Figma node `https://www.figma.com/design/EYjkvHArrBonuiG2JUS2sE/SURF_UI?node-id=4045-282` (saved locally as `docs/design/figma_exports/node_4045-282_mcq_take_mock.png`). Key facts:
+  - **All MCQ options use a custom checkbox UI**, never a radio circle — even single-correct questions. This unifies single + multi-correct under one visual (and incidentally closes the Phase 1 D-2.5 multi-correct gap from the prior amendment).
+  - **Custom checkbox glyph** (replaces Streamlit's native checkbox visual): 20×20px square, 4px radius, 2px `--paper-5` border. Unchecked: `--paper` background, empty interior. Checked: `--paper-5` background, white "✓" glyph rendered in `JetBrains Mono Bold 14px` at left:3.5px / top:-1px. Streamlit's native checkbox visual is hidden (`opacity:0` or `display:none` on `[data-baseweb="checkbox"] svg`) and the custom glyph is rendered via CSS pseudo-elements OR a wrapper helper `mcq_option(label, key)` in `theme.py` (see helper sketch below).
+  - **Four states** with distinct surface treatment:
+    | State | Background | Border | Stamp shadow | Padding | Where used |
+    |---|---|---|---|---|---|
+    | **Off** (unanswered or unselected) | `--paper-1 #ede4d2` | 1px `--paper-shadow #171512` | none | `px-14 py-13` | P4 default, P4 selected-then-cleared |
+    | **On** (user-selected during P4) | `--paper-0 #f5efe4` (lighter than Off) | 2px `--paper-shadow` | `2px 2px 0 --paper-shadow` | `px-15 py-14` | P4 active selection |
+    | **Correct** (review state on P5) | `--ok-wash #9ec7aa` | 2px `--paper-shadow` | `2px 2px 0 --paper-shadow` | `px-15 py-14` | P5 correct option highlighting |
+    | **Incorrect** (review state on P5) | `--accent-soft #e8a798` | 2px `--paper-shadow` | `2px 2px 0 --paper-shadow` | `px-15 py-14` | P5 wrong-pick option highlighting |
+  - **Padding shift compensates for border-width change**: 14/13 → 15/14 keeps text x-position stable when the 1px border becomes 2px on selection. Don't drop this — it's why the Figma feels solid on hover/select.
+  - **5px container `border-radius`** (NOT `--r-sm 4px` — different from buttons/inputs). Locked exactly: `border-radius: 5px`.
+  - **Selection signal is paper elevation + stamp shadow appearing — not an accent color.** Accent colors only appear in the P5 review state (incorrect / correct). The user's pick during P4 is signaled by lifting the paper one shade (paper-1 → paper-0) and adding the stamp shadow. This is the most important visual rule from the Figma — DO NOT default to "selected = accent-colored", that pattern is reserved for review.
+  - **No hover state separate from On/Off** — the Figma shows only 3 interactive states (Off/On/Incorrect) plus a Correct review state. CSS `:hover` on Off can lighten background slightly toward `--paper-0` as an affordance hint without crossing the elevation threshold (subtle — keep transition tied to the same 120ms `--t-fast` token).
+  - **Edit-this-later note:** the four state selectors live in a clearly-delimited `MCQ OPTION` section in `_CSS`. To re-tone (e.g., switch Correct from green to blue), edit the single bg/border line per state. The custom checkbox glyph CSS lives in a `MCQ CHECKBOX` subsection just below.
+  - **Helper Python recipe** for `theme.py` (plan 02-01 implements):
+    ```python
+    def mcq_option(label: str, *, key: str, state: str = "off") -> bool:
+        """Render an MCQ option styled per Figma node 4045:282.
+        state ∈ {"off","on","correct","incorrect"}.
+        Returns True if checked. The 'on' state is set automatically when state=='off'
+        and Streamlit's native checkbox is checked; 'correct'/'incorrect' are review-only,
+        forced by the caller from P5.
+        """
+        with st.container(key=f"mcq-opt-{key}-{state}"):
+            return st.checkbox(label, key=f"_mcq_{key}", label_visibility="visible")
+    ```
+  - **Reach pattern for the scoped CSS** — selectors target `[class*="st-key-mcq-opt-"]` and branch on the state suffix: `[class*="st-key-mcq-opt-"][class*="-off"] { ... }`, `...-on`, `...-correct`, `...-incorrect`. Streamlit appends a stable hash but the `st-key-{exact-string}` portion is preserved.
+
+- **D-2.23 (Take Mock card container — NEW, from Figma node `4045:282`):** The MCQ card container that wraps Q-number chip + Class chip + Difficulty stars + question text + options + actions. Spec:
+  - **Container:** `bg --paper`, `border 2px solid --paper-shadow`, `border-radius 6px`, `box-shadow 3px 3px 0 0 --paper-shadow` (the canonical 3px stamp), `padding 22px 20px 20px 20px` (top 22, sides 20, bottom 20), `max-width 600px`, vertical gap 13px between sections (header / question / options / actions).
+  - **Header row** (gap 13px, baseline-aligned): one "Q{n}" chip (Display/Chip Neutral variant — `paper-0` bg, 1.5px paper-shadow border, 999px radius, mono bold 10px tracked-uppercase, 24px height) + one "{class abbreviation}" chip (same style) + one Difficulty stars display (see D-2.24).
+  - **Question text:** `Fraunces SemiBold Italic 28px`, `line-height 1.15`, `letter-spacing -1` (≈ -0.035em), color `#1A1814` ("Rangoon Green" — slightly darker than `--paper-5 #28251f`; if pixel-perfect doesn't matter, `--paper-5` is acceptable). Uses `font-variation-settings: 'SOFT' 0, 'WONK' 1` per D-2.16 if WONK axis is loaded; harmless if not.
+  - **Options block:** vertical stack, gap 8px (`--item-spacing-xs`), top-padding 3px to clear the question's descender clipping.
+  - **Actions row:** equal-flex layout (`flex-1` per child), gap 8px in P4 / 0px in P5-checked. P4: `[Clear] [Clear] [Submit/REST]` — Clear buttons use Ghost variant (2px paper-shadow border, no fill, 0.5/0.5 stamp shadow), Submit uses Default variant (paper-5 bg, white text, 0.5/0.5 stamp shadow + 2px paper-shadow border). P5-checked: only `[REST]` shown full-width (already submitted).
+  - **Edit-this-later note:** the card selector in `_CSS` is `[class*="st-key-mcq-card"]`; question_render in `app/mock_take/question_render/` wraps the whole card in `st.container(key="mcq-card-q{question_id}")`. To re-flow the layout (e.g., difficulty on the right instead of inline with chips), edit the header `st.columns` configuration in `question_render.py`.
+
+- **D-2.24 (Difficulty stars display — NEW, from Figma node `4028:141`):** Replaces the text placeholder `—` from D-3.5 (which can stay as a fallback when `difficulty_score IS NULL`). Spec:
+  - **Container:** 24px height, `bg --paper-1`, `border 2px solid --paper-shadow`, `border-radius 6px`, `box-shadow 2px 2px 0 0 --paper-shadow` (stamp-sm), `padding 2px 10px`, gap 1px between stars.
+  - **5 star slots**, each 20×20px. N filled per the difficulty `level` (1–5 in Figma; map from `difficulty_score: float ∈ [0,1]` via `level = round(score * 5)` clamped to `[1, 5]`). Filled star = solid SVG (Foundation/Icon/Star with `filled=true`); empty star = outline-only SVG.
+  - **Star SVGs** can either be inlined as base64 data-URIs in `_CSS` or shipped as separate files in `assets/icons/star_filled.svg` and `assets/icons/star_empty.svg`. Plan 02-01 picks: ship as 2 SVG files (cleaner edits) and reference via `background-image`.
+  - **Phase 2 ships placeholder behavior:** when `difficulty_score IS NULL` (Phase 4 ML hasn't landed), display the chip with the `paper-3 dashed` border + the text "—" centered, OR render 0 filled stars. Either is acceptable; pick the latter for visual consistency with the chip frame.
+  - **Edit-this-later note:** the star SVGs live in `assets/icons/`; the level→fill mapping lives in `app/mock_take/question_render/_difficulty.py`.
 
 - **D-2.21 (`st.status` + `st.expander` skins — NEW vs theme.py, closes ingestion + review-density gaps):** Two Streamlit-native components used by Phase 2 are currently unstyled:
   - **`st.status`** (P3 ingestion log per D-2.6): paper-0 background, 1.5px paper-3 border, accent-vibrant left-border (3px) when running, ok left-border when complete, accent-vibrant left-border when error. Eyebrow-style label (mono, uppercase, tracked).
@@ -230,9 +285,19 @@ These are NOT decided here — the widget-catalog researcher and planner pick:
 
 ### Parallel-session output (2026-05-02 amendment — supersedes Wave-1 Q1 extraction spike)
 - **`02-PARALLEL-AUDIT.md`** (sibling) — full good/bad/reusable/discard verdict on `/Streamlit_Test/`. **Read before plan 02-01 work.**
-- `/Users/tiagoreimann/surf/Streamlit_Test/ui/theme.py` — production-grade scoped-CSS design system (598 lines). Seed for `app/brain/theme/theme.py` (production) AND `previews/_theme.py` (sandbox). Two copies, drift is a feature per CLAUDE.md.
+- `/Users/tiagoreimann/surf/Streamlit_Test/ui/theme.py` — production-grade scoped-CSS design system (598 lines). Seed for `app/brain/theme/theme.py` (production) AND `previews/_theme.py` (sandbox). Two copies, drift is a feature per CLAUDE.md. **Caveat:** the MCQ section is wrong (D-2.20 amendment, 2026-05-02 second pass) — discard and re-implement per Figma node 4045:282.
 - `/Users/tiagoreimann/surf/Streamlit_Test/test_components.py` — working sandbox showing every component composed. Seed for `previews/components/_theme_bench/preview.py`.
 - `/Users/tiagoreimann/surf/Streamlit_Test/.streamlit/config.toml` — Streamlit native `[theme]` block mirroring the CSS tokens. Seed for project-root `.streamlit/config.toml` (D-2.2 light + D-2.12 token values).
+
+### Self-hosted fonts (2026-05-02 second amendment, D-2.16 lock)
+- `assets/fonts/Fraunces-normal-400_900.woff2` — variable upright, weight axis 400–900, latin subset.
+- `assets/fonts/Fraunces-italic-400_900.woff2` — variable italic, weight axis 400–900, latin subset.
+- `assets/fonts/JetBrainsMono-Variable.woff2` — variable upright, weight axis 100–800, latin subset.
+- Total ~190 KB. WONK/SOFT axes for Fraunces not included in v1 (see D-2.16 edit-this-later note for re-fetch recipe).
+
+### Figma frame screenshots (local cache, supplements live Figma file)
+- `docs/design/figma_exports/node_25-2.png` — Components page (existing).
+- `docs/design/figma_exports/node_4045-282_mcq_take_mock.png` — Take Mock card across 3 states (Unanswered / Answered / Checked). Canonical reference for D-2.20 (MCQ option), D-2.23 (card container), D-2.24 (difficulty stars).
 
 ### Existing code (already shipped — patterns to follow + integrate with)
 - `app/brain/claude_client/claude_client.py` — single shared Anthropic wrapper. Used by P1 to validate API key (a `client.messages.create` with `max_tokens=1` against the user-entered key).

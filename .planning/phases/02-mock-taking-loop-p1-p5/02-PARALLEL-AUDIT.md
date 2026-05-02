@@ -2,7 +2,11 @@
 
 **Audited:** 2026-05-02
 **Source:** `/Users/tiagoreimann/surf/Streamlit_Test/` — built in a parallel session against the locked Figma library `EYjkvHArrBonuiG2JUS2sE` (SURF_UI).
-**Verdict:** **HIGH QUALITY — adopt with three amendments.** ~80% directly reusable. The remaining 20% is migration (folder location), one accessibility amendment (`prefers-reduced-motion`), and one coverage extension (multi-correct checkbox styling).
+**Verdict (revised 2026-05-02):** **HIGH QUALITY for tokens + most components, but the MCQ option design is WRONG and must be discarded.** ~70% directly reusable (was 80% before the MCQ inspection). The MCQ redesign and three smaller amendments (`prefers-reduced-motion`, `st.expander`/`st.status` skins, font self-hosting) are now locked in `02-CONTEXT.md` D-2.15..D-2.24.
+
+**Two follow-up changes applied since the original audit:**
+1. **MCQ option redesigned** per Figma node `4045:282` — see D-2.20 amendment in `02-CONTEXT.md` (custom 20×20 checkbox glyph, paper-1 → paper-0 elevation on select, accent colors only in review state, NOT during P4 selection).
+2. **Fonts self-hosted** in `assets/fonts/` (3 variable WOFF2 files, ~190 KB) — was deferred in the original audit, now locked under D-2.16.
 
 This audit feeds into Phase 2 plan 02-01 (theme + tokens + previews/ scaffold) and supersedes the Wave-1 Q1 spike "Figma extraction" — that work is already done.
 
@@ -50,7 +54,13 @@ This audit feeds into Phase 2 plan 02-01 (theme + tokens + previews/ scaffold) a
 
 2. **No `prefers-reduced-motion` accessibility query.** Hover transitions, transforms, and stamp-shadow shifts run unconditionally. **Action:** append a media-query block at the bottom of `_CSS` that disables `transition` and `transform` for users who prefer reduced motion. ~6 lines of CSS.
 
-3. **No styling for multi-correct MCQs (checkbox group).** `[class*="st-key-mcq"] [role="radiogroup"] > label` only covers the radio variant. Phase 1 D-2.5 locked `correct_indices` as a list — multi-correct questions render as `st.checkbox` group, not radio. **Action:** extend the `st-key-mcq` block to also style `[data-testid="stCheckbox"]` (selected/hover/focus states using the same accent-wash + stamp-shadow recipe).
+3. **MCQ option design is WRONG — discard the entire `st-key-mcq` section in `theme.py` and rebuild from Figma node `4045:282`.** (Upgraded from "small gap" after Tiago flagged on 2026-05-02.) The current theme.py uses Streamlit's stock radio with hover changing border to `--accent-vibrant` + bg to `--accent-wash`. The Figma uses a completely different design:
+   - **All options use a custom 20×20 checkbox**, never a radio circle (single + multi-correct unified).
+   - **Selected state uses `--paper-0` elevation + 2px stamp shadow — NOT an accent color.** Accent colors only appear in P5 review (`--accent-soft #e8a798` for incorrect, `--ok-wash #9ec7aa` for correct).
+   - **Padding shifts** from 14/13 (Off, 1px border) to 15/14 (On/Correct/Incorrect, 2px border) to keep text x-position stable.
+   - **Container `border-radius: 5px`** (NOT 4px — different from buttons).
+   - **Custom checkbox glyph**: 20×20 square, 4px radius, 2px paper-5 border. Checked: paper-5 fill, white "✓" in JetBrains Mono Bold 14px.
+   - Full spec lives in `02-CONTEXT.md` D-2.20. Plan 02-01 must (a) remove the existing `MCQ OPTION` section in `_CSS`, (b) hide Streamlit's native checkbox visuals, (c) implement the four-state selector tree, (d) add a `mcq_option(label, key, state)` helper to `theme.py`. **This also incidentally closes the multi-correct gap** mentioned earlier in this audit since the unified checkbox design covers both.
 
 4. **CSS is embedded in a Python string, not a `.css` file.** `02-CONTEXT.md` D-2.1 said "single scoped-CSS file at `app/brain/theme/surf_theme.css`". Streamlit_Test inlined the CSS in `_CSS = """..."""` and ships it via `st.markdown(_CSS, unsafe_allow_html=True)`. **This is actually simpler** (one file, importable, no path resolution, no `.read_text()`), and the edit-this-later note already covers swap. **Recommendation:** ship as Python module (the Streamlit_Test approach), NOT as separate `.css`. Update D-2.1 delivery mechanism — see reconciliation below.
 
@@ -58,7 +68,7 @@ This audit feeds into Phase 2 plan 02-01 (theme + tokens + previews/ scaffold) a
 
 6. **`config.toml` `font = "serif"` is generic.** Only `"sans serif" | "serif" | "monospace"` are accepted by Streamlit's `[theme] font` field without `[[theme.fontFaces]]` (Streamlit 1.30+). The CSS `@import url('…Fraunces…JetBrains+Mono…')` already loads the real fonts and overrides every text container via `font-family`. **Acceptable for v1.** If Tiago wants to wire the custom font into Streamlit-native widgets (text inputs in particular use the family from `[theme]` before CSS overrides bind), add a `[[theme.fontFaces]]` block. Defer to polish.
 
-7. **Google Fonts is a network dependency on first load.** `@import url('https://fonts.googleapis.com/...')` requires network at `inject_theme()` time. For grader-machine offline reproducibility, self-host fonts in `assets/fonts/` and `@font-face` them. **Defer** — not blocking for Phase 2.
+7. **~~Google Fonts network dependency~~ → RESOLVED (2026-05-02).** Fonts now self-hosted in `assets/fonts/` per D-2.16 (locked). Three variable WOFF2 files, ~190 KB total: `Fraunces-normal-400_900.woff2`, `Fraunces-italic-400_900.woff2`, `JetBrainsMono-Variable.woff2`. The `@import url(...)` line at the top of `theme.py`'s `_CSS` must be replaced with three `@font-face` declarations pointing to the local files (recipe in D-2.16). One open caveat: WONK/SOFT axes for Fraunces are not in the downloaded files (the Figma uses `'WONK' 1` for italic stylistic alts) — visually close but not pixel-identical. Re-fetch recipe with full axis range is documented in the D-2.16 edit-this-later note.
 
 8. **No tooltip/popover/dialog styling.** Streamlit native tooltips (`data-baseweb="tooltip"`), `st.dialog`, `st.popover`, `st.expander` are unstyled. Phase 2 uses `st.status` (ingestion progress) and may use `st.expander` (P5 difficulty breakdown). **Recommendation:** plan 02-01 adds at minimum an `st.expander` skin (eyebrow header, paper-1 background, stamp-shadow on hover) and an `st.status` skin (paper-0 background, accent border on running, ok border on success). Tooltip + dialog can defer.
 

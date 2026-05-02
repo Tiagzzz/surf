@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 CONTEXT amended (Area 6 Branding & Visual Language — D-2.12..D-2.22 — added after parallel-session audit; plan 02-01 needs re-plan to fold in branding decisions)
-last_updated: "2026-05-02T13:55:00.000Z"
-last_activity: 2026-05-02 -- Phase 2 context amendment + Streamlit_Test parallel-session audit (02-PARALLEL-AUDIT.md written)
+stopped_at: Phase 2 CONTEXT amended again — fonts self-hosted (D-2.16 locked, 3 variable WOFF2 in assets/fonts/) + MCQ option redesigned per Figma node 4045:282 (D-2.20 replaced; D-2.23 card container + D-2.24 difficulty stars added). Plan 02-01 needs re-plan.
+last_updated: "2026-05-02T14:05:00.000Z"
+last_activity: 2026-05-02 -- Phase 2 context second amendment (fonts self-hosted, MCQ redesign from Figma node 4045:282)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -36,8 +36,8 @@ Wave map (unchanged): W1 (01) → W2 (02, 03) → W3 (04a) → W4 (04b, 05) → 
 - 02-05: P4 Take Mock + fragment timer + UPSERT-on-nav + UNIQUE constraint amendment
 - 02-06: P5 Review Mock + summary banner + grading_formula extraction
 - 02-07: E2E AppTest P1→P5 + sidecar audit + final visual sweep
-Status: 02-CONTEXT.md amended with Area 6 (Branding & Visual Language) — D-2.12 token taxonomy, D-2.13 stamp-shadow recipe, D-2.14 transitions-only motion (drops D-2.3 fade-in), D-2.15 prefers-reduced-motion, D-2.16 Google Fonts loading, D-2.17 Python-module theme delivery (amends D-2.1), D-2.18 scoping pattern, D-2.19 Python helper primitives, D-2.20 multi-correct MCQ styling, D-2.21 st.status + st.expander skins, D-2.22 sandbox/production drift. Sibling 02-PARALLEL-AUDIT.md written. Plan 02-01 needs re-plan; plans 02-02..02-07 untouched by this amendment.
-Last activity: 2026-05-02 -- Phase 2 context amendment + Streamlit_Test parallel audit
+Status: 02-CONTEXT.md amended (Area 6 Branding & Visual Language — D-2.12..D-2.24). Latest pass (2026-05-02 PM): D-2.16 swapped from Google Fonts @import to self-hosted WOFF2 in assets/fonts/ (3 variable files, ~190 KB); D-2.20 (MCQ option) replaced with the canonical Figma node 4045:282 design — custom 20×20 checkbox glyph, paper-1→paper-0 elevation on select (no accent color during P4), accent-soft/ok-wash only in P5 review, 5px container radius, padding shift on selection. D-2.23 (Take Mock card container) and D-2.24 (5-star difficulty display) added. Plans 02-02..02-07 still untouched by these amendments.
+Last activity: 2026-05-02 -- Phase 2 second amendment (fonts self-hosted + MCQ redesign per Figma 4045:282)
 
 Phase 1 progress: [██████████] 100%
 Overall (1/5 phases): [██░░░░░░░░] 20%
