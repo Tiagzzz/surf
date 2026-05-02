@@ -31,6 +31,7 @@ from _theme import (  # noqa: E402
     chips_row,
     empty_state_text,
     eyebrow,
+    heading_h2,
     inject_theme,
     meta,
     score,
@@ -78,7 +79,7 @@ st.divider()
 # =========================================================================
 # CLASS CARDS — central P2 component
 # =========================================================================
-st.markdown("## Class cards")
+heading_h2("Class cards")
 caption(
     "Eyebrow + Fraunces italic name + mono meta on the left, big italic "
     "Fraunces score on the right. Hover lifts; press sinks."
@@ -105,7 +106,7 @@ st.divider()
 # =========================================================================
 # STAT CARDS — KPI tiles for P6 dashboard
 # =========================================================================
-st.markdown("## Stat cards")
+heading_h2("Stat cards")
 caption("KPI tile pattern — eyebrow · label · big italic value · optional delta.")
 
 scols = st.columns(4)
@@ -128,7 +129,7 @@ st.divider()
 # =========================================================================
 # CHIPS
 # =========================================================================
-st.markdown("## Chips")
+heading_h2("Chips")
 caption("Mono uppercase pill — for tags, filters, status flags.")
 
 chips_row([
@@ -147,7 +148,7 @@ st.divider()
 # =========================================================================
 # STEP ITEM — wizard / progress indicator
 # =========================================================================
-st.markdown("## Steps")
+heading_h2("Steps")
 caption(
     "Inline step indicator — done · active · todo. Used in onboarding "
     "(P1 → P2 → P3) and ingestion wizard."
@@ -166,7 +167,7 @@ st.divider()
 # =========================================================================
 # BUTTONS — Default · Ghost · Soft · Tinted
 # =========================================================================
-st.markdown("## Buttons")
+heading_h2("Buttons")
 caption(
     "Four families — Default · Ghost · Soft · Tinted. Stamp shadow lifts "
     "on hover, sinks on press. Disabled state below each."
@@ -212,7 +213,7 @@ st.divider()
 # =========================================================================
 # INPUTS
 # =========================================================================
-st.markdown("## Inputs")
+heading_h2("Inputs")
 icols = st.columns(3)
 with icols[0]:
     st.text_input("Email", placeholder="you@example.com", key="i-email")
@@ -232,7 +233,7 @@ st.divider()
 # =========================================================================
 # TOGGLES · CHECKBOXES · RADIO
 # =========================================================================
-st.markdown("## Toggles, checkboxes, radio")
+heading_h2("Toggles, checkboxes, radio")
 tcols = st.columns(3)
 with tcols[0]:
     eyebrow("Toggle")
@@ -256,7 +257,7 @@ st.divider()
 # this older pattern. The OLD pattern is harmless on its own; it remains
 # styled by the `[class*="st-key-mcq"]` rules' fallback default.
 # =========================================================================
-st.markdown("## MCQ option — radio (legacy, kept for visual diff)")
+heading_h2("MCQ option — radio (legacy, kept for visual diff)")
 caption(
     "OLD radio-styled-as-paper-card. Kept here so Tiago can see it next to "
     "the new D-2.20 checkbox states (next section)."
@@ -280,7 +281,7 @@ st.divider()
 # Each state is keyed `mcq-opt-{key}-{state}` so the scoped CSS branches
 # on the suffix and paints the four distinct surface treatments.
 # =========================================================================
-st.markdown("## MCQ option states (D-2.20)")
+heading_h2("MCQ option states (D-2.20)")
 caption(
     "Figma node 4045:282 — four states keyed via mcq-opt-{key}-{state}. "
     "Selection signal during P4 is paper elevation + stamp shadow appearing "
@@ -316,7 +317,7 @@ st.divider()
 # =========================================================================
 # TABS
 # =========================================================================
-st.markdown("## Tabs")
+heading_h2("Tabs")
 tab1, tab2, tab3 = st.tabs(["Lectures", "Mock exams", "Dashboard"])
 with tab1:
     st.markdown("### Lectures")
@@ -334,7 +335,7 @@ st.divider()
 # =========================================================================
 # CARD · CARD INTERACTIVE
 # =========================================================================
-st.markdown("## Card · Card Interactive")
+heading_h2("Card · Card Interactive")
 ccols = st.columns(2)
 with ccols[0]:
     eyebrow("Passive card")
@@ -358,7 +359,7 @@ st.divider()
 # =========================================================================
 # EMPTY STATE
 # =========================================================================
-st.markdown("## Empty state")
+heading_h2("Empty state")
 caption(
     "Dashed border + ornament + mono headline + mono body + CTA. Used "
     "wherever a list is empty (no classes, no mocks, no attempts)."
@@ -390,7 +391,7 @@ st.divider()
 # =========================================================================
 # MESSAGES
 # =========================================================================
-st.markdown("## Messages")
+heading_h2("Messages")
 mcols = st.columns(4)
 with mcols[0]:
     st.info("Factsheet uploaded — review before continuing.")
@@ -407,7 +408,7 @@ st.divider()
 # =========================================================================
 # STATUS · EXPANDER (D-2.21) — new skins from this plan
 # =========================================================================
-st.markdown("## st.status · st.expander (D-2.21)")
+heading_h2("st.status · st.expander (D-2.21)")
 caption(
     "st.status — accent-vibrant left-border while running, ok-green when "
     "complete. st.expander — paper-1 base, hover lifts with 2px stamp shadow."
@@ -433,7 +434,7 @@ st.divider()
 # =========================================================================
 # FILE UPLOADER
 # =========================================================================
-st.markdown("## File upload")
+heading_h2("File upload")
 st.file_uploader("Lecture PDF", type=["pdf"], key="up-pdf")
 
 st.markdown(" ")

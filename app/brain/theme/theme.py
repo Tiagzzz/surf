@@ -102,7 +102,15 @@ html, body { font-family: var(--serif); }
 [data-testid="stMarkdownContainer"] p,
 [data-testid="stMarkdownContainer"] li { font-family: var(--serif); font-size: 17px; line-height: 1.5; color: var(--paper-5); }
 h1 { font-family: var(--serif); font-style: italic; font-weight: 900; font-size: 42px; line-height: 0.95; letter-spacing: -0.02em; color: var(--paper-5); }
-h2 { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; color: var(--paper-5); }
+/* Serif/H2 — Figma row `Serif/H2 | SemiBold Italic | 28 | 115% | -1%`
+   (02-FIGMA-RESEARCH §5.7). The "28/15" shorthand in the type scale
+   reads as "size 28 / line-height 115%". Both the bare <h2> tag and
+   the .serif-h2 utility class paint the same way, so callers can
+   choose `st.markdown("## Title")` (which renders <h2>) or the
+   explicit `heading_h2(text)` helper that emits <h2 class="serif-h2">. */
+h2,
+.serif-h2,
+h2.serif-h2 { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; color: var(--paper-5); margin: 0 0 12px 0; }
 h3 { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; line-height: 1.15; color: var(--paper-5); }
 h4 { font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 1.3; color: var(--paper-5); }
 
@@ -787,6 +795,19 @@ def inject_theme() -> None:
 # (D-2.19 hardening — closes the XSS surface that the parallel session left
 # open in `Streamlit_Test/ui/theme.py`).
 # ---------------------------------------------------------------------------
+
+
+def heading_h2(text: str) -> None:
+    """Render a Serif/H2 section heading.
+
+    Figma row `Serif/H2 | SemiBold Italic | 28 | 115% | -1%` (per
+    02-FIGMA-RESEARCH.md §5.7) — the canonical section-heading style
+    used on Cards/Class, Stat Card, and the MCQ question text. Both
+    the bare `<h2>` tag and the `.serif-h2` utility class paint the
+    same way, so callers can mix `st.markdown("## Title")` (which
+    renders `<h2>`) with this helper interchangeably.
+    """
+    st.markdown(f'<h2 class="serif-h2">{html.escape(text)}</h2>', unsafe_allow_html=True)
 
 
 def eyebrow(text: str) -> None:

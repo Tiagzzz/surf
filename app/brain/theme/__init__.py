@@ -1,6 +1,6 @@
 """Surf design system — public API.
 
-Re-exports the 10 callables from `theme.py` so callers write::
+Re-exports the 11 callables from `theme.py` so callers write::
 
     from app.brain.theme import inject_theme
     inject_theme()
@@ -14,6 +14,7 @@ from .theme import (
     chips_row,
     empty_state_text,
     eyebrow,
+    heading_h2,
     inject_theme,
     meta,
     score,
@@ -23,6 +24,7 @@ from .theme import (
 
 __all__ = [
     "inject_theme",
+    "heading_h2",
     "eyebrow",
     "caption",
     "meta",
