@@ -2,7 +2,7 @@
 
 **Phase:** 02 — Mock Taking Loop (P1–P5)
 **Author:** Claude (research pass, 2026-05-02)
-**Status:** v1 — locked open questions, ready for Phase 2 plan consumption
+**Status:** v1.1 — one open question (OQ-1, §10) re-opened 2026-05-02 evening; affects plan 02-06 only (not 02-05 wave-1)
 **Figma file:** [SURF_UI](https://www.figma.com/design/EYjkvHArrBonuiG2JUS2sE/SURF_UI?node-id=25-2) · `fileKey=EYjkvHArrBonuiG2JUS2sE`
 **Scope:** page `Components` (node `25:2`) — components on other pages explicitly out of scope per user direction
 
@@ -452,12 +452,45 @@ docs/design/figma_exports/
 3. **MCQ card spec is fully extracted.** `Cards / Quizz` at node `4045:282` gives Phase 2 task 02-01 (MCQ rebuild) a complete reference: 3 states, exact padding `22/20/20/20` (top/right/bottom/left, from Quizz code: `pt-[22px] pb-[20px] px-[20px]`), radius 6, gap 13, max-width 600, buttons spec, option-row spec, mint-wash for correct answer.
 4. **Hard-stamp shadow rule is absolute.** No CSS overrides may introduce any blurred / soft shadows. Only the four named stamps are allowed. Period.
 5. **Streamlit-precedence rule pre-resolves Phase 2 design conflicts.** When Streamlit can't reproduce a Figma detail, adapt without re-asking.
+6. **Variant-3 (P5-Checked) teaching content is code-extended, not Figma-extended.** See §10 OQ-1 — plan 02-06 builds rationale + correctness-glyph rendering inline under each option per D-4.2, even though the Figma variant 3 depicts only the option surface states and the single full-width REST button.
 
 ---
 
-## 10. Known unknowns — none open
+## 10. Open questions
 
-All open questions resolved as of 2026-05-02. The only one that surfaced during this session (the `shadow/lift` survival check) was answered in favour of the strict-aesthetic interpretation: all blurred shadows deleted, 4 hard stamps only — see §5.8 and §7 ruling 4.
+> Originally locked as "none open" 2026-05-02 14:00. Re-opened 2026-05-02 17:59 after Tiago's wave-1 visual review surfaced the variant-3 gap below (OQ-1). The earlier session-internal unknown (`shadow/lift` survival) is resolved — all blurred shadows deleted, 4 hard stamps only (see §5.8 and §7 ruling 4).
+
+### OQ-1 — `Cards / Quizz` variant 3 (P5-Checked state) is incomplete vs. P5 spec
+
+**Surfaced:** 2026-05-02 ~17:59 by Tiago during Phase 2 wave-1 visual review (claude-mem obs in this session).
+**Figma node:** `4045:282` — `Cards / Quizz`, third variant (the bottom card in `docs/design/figma_exports/node_4045-282_mcq_take_mock.png`).
+**Affects plan:** **02-06-PLAN.md** (P5 Review Mock — rationales upfront, difficulty upfront). **Not** plan 02-05 (P4 Take Mock builds variants 1+2 only — Unanswered, Answered).
+
+**What variant 3 currently shows in Figma:** Q-chip + Class-chip + Difficulty stars header · MCQ question text · 4 option rows in their P5 review states (mint-wash `--ok-wash` for correct, coral `--accent-soft` for incorrect, plain for unselected) · single full-width `[REST]` button. This matches D-2.23's footer rule (P5-checked: only `[REST]` shown full-width).
+
+**What variant 3 is missing vs. plan 02-06 + D-4.2 requirements:**
+
+1. **Per-option rationale block** — D-4.2 (in `02-CONTEXT.md`) locks: *"Per-option rationale (D-2.6 from Phase 1) is upfront, always visible — this is P5's primary teaching value."* Plan 02-06 task spec (`02-06-PLAN.md` line 206) renders rationale text via `st.markdown(rationales[i])` **directly under each option** — inline, not in an expander. Figma variant 3 shows no rationale text under any option.
+2. **Per-option correctness glyph** — Plan 02-06 line 206 calls for `:material/check_circle:` (correct) or `:material/cancel:` (user picked but wrong) inline-tagged per option. Figma variant 3 uses only the surface-color signal (mint-wash / coral / paper) without the explicit glyph.
+3. **Difficulty score upfront on the card** — D-4.2 says difficulty score is upfront on each card (no expander). The header in variant 3 already shows the 5-star difficulty display (D-2.24), so this may be considered covered — but the *raw numeric* `difficulty_score` (the float ∈ [0,1]) and the Phase 4 placeholder `—` (D-3.5) are not depicted alongside the stars. Open: stars-only is sufficient OR a small numeric chip is added next to the stars.
+4. **Difficulty-breakdown expander affordance** — D-4.2 keeps the 6 individual difficulty features behind `▸ Difficulty breakdown`. No collapse/caret affordance is drawn anywhere on variant 3.
+
+**Cross-reference to D-2.20 / D-2.23 / D-2.24** — these decisions lock the **option-state surfaces** and the **card chrome** (container, padding, header chips, footer button rules). They do **not** govern review-only teaching content (rationales, correctness glyphs, breakdown expander). This OQ is therefore a card-content gap, not a contradiction with the locked option-state design. The four MCQ option states (Off / On / Correct / Incorrect) in D-2.20 stay locked exactly as drawn.
+
+**Resolution strategy (deferred to plan 02-06's design pass — not a 02-05 blocker):**
+
+- **Option A (preferred):** plan 02-06 extends variant 3 in code only — adds the rationale + glyph rendering inline under each option per the existing plan-task spec, and resolves the difficulty-upfront question (Stars-only vs. stars + numeric chip) at preview-gate time with Tiago. No Figma update needed because the design system already supplies all the building blocks (text styles for rationale body, Foundation/Icon for check_circle / cancel, expander skin per D-2.21).
+- **Option B (Phase 3 backlog):** retroactively update the Figma variant 3 to depict the rationale block + glyphs once the code lands. Adds to §11 future-work list. This is purely Figma-side cleanup; it does not change what the app ships.
+- **Option not chosen:** blocking 02-05 or 02-06 on a Figma update. Figma MCP access has been intermittent this week (memory S92, S93, obs 988). Per the §0 top-level principle ("design system applies by default; adapt where Streamlit forces"), the code spec already in `02-06-PLAN.md` is sufficient — variant 3 is treated as "states + chrome reference; teaching content extends the variant per D-4.2."
+
+**Action for plan 02-06 executor:** during the P5 sandbox preview gate, explicitly ask Tiago to confirm:
+1. Stars-only header is sufficient OR add a numeric difficulty chip next to the stars.
+2. Inline rationale below each option is correctly placed (not nested inside any expander).
+3. Glyph choice (`:material/check_circle:` vs. another marker) reads cleanly against `--ok-wash` / `--accent-soft` backgrounds.
+
+Capture answers as a follow-up D-4.x amendment in `02-CONTEXT.md` if they deviate from the current plan-task spec.
+
+---
 
 ### 10.1 Deferred post-MVP (per rule-book §11.1 — not blocking submission)
 
