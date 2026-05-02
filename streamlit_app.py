@@ -12,6 +12,10 @@ from pathlib import Path
 
 import streamlit as st
 
+from app.brain.theme import inject_theme
+
+inject_theme()
+
 
 def is_authenticated() -> bool:
     """Has the user signed up on this machine?

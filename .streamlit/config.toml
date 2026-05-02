@@ -2,8 +2,17 @@
 maxUploadSize = 50
 
 [theme]
-primaryColor = "#1f77b4"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
-font = "sans serif"
+# Surf design tokens — paper-and-stamp aesthetic (D-2.12 LOCKED).
+# These values mirror :root in app/brain/theme/theme.py so any Streamlit
+# native widget that paints before our scoped CSS binds still picks up the
+# right palette. To re-tone the brand, edit BOTH this block AND _CSS in
+# theme.py — they must stay in sync.
+base                       = "light"
+primaryColor               = "#c8361d"   # accent-vibrant
+backgroundColor            = "#fdf9f2"   # paper
+secondaryBackgroundColor   = "#ede4d2"   # paper-1
+textColor                  = "#28251f"   # paper-5
+
+# Streamlit ≥1.50 modern theme knobs (RESEARCH §7.1).
+baseRadius                 = "0.5rem"
+showBorderAroundInputs     = true

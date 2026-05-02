@@ -1,7 +1,19 @@
 # Surf — project configuration.
 #
-# Ruff config only for now (lint + format). No build system: Surf is run
-# directly via `streamlit run streamlit_app.py`, not installed as a package.
+# Ruff config + dependency pins. No build system: Surf is run directly via
+# `streamlit run streamlit_app.py`, not installed as a package. The
+# `[project]` table below exists so `pip install -r requirements.txt` (or a
+# future `pip install -e .`) can read the version floor for Streamlit, which
+# the design system in `app/brain/theme/theme.py` depends on (modern
+# `[theme]` palette knobs + `st.container(key=...)` wrappers, RESEARCH §1).
+
+[project]
+name = "surf"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.50.0",  # design-system floor — D-2.12 / RESEARCH §1, §9, A5
+]
 
 [tool.ruff]
 line-length = 100
@@ -20,3 +32,8 @@ select = ["E", "F", "I"]
 # Long lines OK in tests + system-prompt strings + scaffolded __init__ files.
 "tests/*" = ["E501"]
 "**/__init__.py" = ["F401"]  # re-exports look like unused imports
+# theme.py embeds the design-system CSS as a Python string; CSS rules are
+# legitimately one long line each and should not be split mid-rule.
+"app/brain/theme/theme.py" = ["E501"]
+"previews/_theme.py" = ["E501"]
+"previews/components/_theme_bench/_theme.py" = ["E501"]
