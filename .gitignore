@@ -34,6 +34,7 @@ ENV/
 .idea/
 *.swp
 *.swo
+.claude/
 
 # OS
 .DS_Store
@@ -45,3 +46,7 @@ docs/handoff_*/
 # HSG course material (other classes' exam catalogues used as
 # NotebookLM analysis input — not Surf code, not committed)
 OLD_EXAM_CATALOG/
+
+# Canvas course material downloaded for NotebookLM seeding — large,
+# ephemeral, not Surf code
+canvas_downloads/
