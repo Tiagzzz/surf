@@ -1,0 +1,84 @@
+{
+  "spec_version": 1,
+  "diagram_id": "query_layer_v1",
+  "title": "How the app reads from and writes to SQLite (the 6 query modules)",
+  "purpose": "Show the read/write boundary between the app and the database. Every SQL statement in Surf lives inside one of 6 small modules — one per table family. The teacher should see that no random script ever writes a SQL string directly; everything goes through these named helpers. Phase 2 pages will only call functions in this layer.",
+  "audience": "non-engineer teammates and the grading teacher",
+  "linked_sidecars": [
+    "app/db/connection.md",
+    "app/db/schema/schema.md",
+    "app/db/queries_users/queries_users.md",
+    "app/db/queries_classes/queries_classes.md",
+    "app/db/queries_lectures/queries_lectures.md",
+    "app/db/queries_learning_objectives/queries_learning_objectives.md",
+    "app/db/queries_pages/queries_pages.md",
+    "app/db/queries_questions/queries_questions.md"
+  ],
+  "groups": [
+    { "id": "infra", "label": "DB infra — opens the connection, applies the schema" },
+    { "id": "queries", "label": "Query modules (one per table family) — every read and write goes through these" },
+    { "id": "tables", "label": "SQLite tables (8) — see db_structure_v1 for the full schema" },
+    { "id": "callers", "label": "Phase 1 callers — who uses the query layer today" }
+  ],
+  "nodes": [
+    { "id": "connection", "kind": "script", "label": "connection.connect", "group": "infra", "description": "Opens a sqlite3 connection at ~/.surf/user.sqlite, runs the schema.sql file (idempotent CREATE IF NOT EXISTS), enables foreign keys" },
+    { "id": "schema_sql", "kind": "file_input", "label": "schema/schema.sql (single-file DDL, D-3.1 wipe-and-rerun)", "group": "infra", "description": "All 8 tables + 10 indexes in one file. To apply schema changes during the build: delete the .sqlite file and re-run" },
+
+    { "id": "q_users", "kind": "script", "label": "queries_users", "group": "queries", "description": "insert_user, get_user_by_id, get_user_by_username, list_users" },
+    { "id": "q_classes", "kind": "script", "label": "queries_classes", "group": "queries", "description": "insert_class, get_class_by_id, list_classes_for_user. Encodes/decodes factsheet_json transparently" },
+    { "id": "q_lectures", "kind": "script", "label": "queries_lectures", "group": "queries", "description": "insert_lecture, get_lecture_by_id, list_lectures_for_class, set_lecture_status" },
+    { "id": "q_los", "kind": "script", "label": "queries_learning_objectives", "group": "queries", "description": "insert_learning_objective, get_learning_objective_by_id, list_learning_objectives_for_lecture" },
+    { "id": "q_pages", "kind": "script", "label": "queries_pages", "group": "queries", "description": "insert_slide_page, get_slide_page_by_id, list_slide_pages_for_lecture, set_slide_page_status, set_slide_page_learning_objective" },
+    { "id": "q_questions", "kind": "script", "label": "queries_questions", "group": "queries", "description": "insert_question, list_questions_for_slide_page, list_questions_for_lecture (JOINs through slide_pages)" },
+
+    { "id": "tbl_users", "kind": "db_table", "label": "users", "group": "tables" },
+    { "id": "tbl_classes", "kind": "db_table", "label": "classes", "group": "tables" },
+    { "id": "tbl_lectures", "kind": "db_table", "label": "lectures", "group": "tables" },
+    { "id": "tbl_los", "kind": "db_table", "label": "learning_objectives", "group": "tables" },
+    { "id": "tbl_pages", "kind": "db_table", "label": "slide_pages", "group": "tables" },
+    { "id": "tbl_questions", "kind": "db_table", "label": "questions", "group": "tables" },
+
+    { "id": "ingest_orchestrator", "kind": "script", "label": "lecture_ingest.ingest_lecture", "group": "callers", "description": "Phase 1's main caller — uses 5 of the 6 query modules during ingestion" },
+    { "id": "factsheet_cleaner", "kind": "script", "label": "factsheet_clean (cleaner + renderer)", "group": "callers", "description": "Writes through queries_classes when a class is created; renderer reads back through it" },
+    { "id": "phase2_placeholder", "kind": "decision_point", "label": "Phase 2+ pages will be added here as they ship", "group": "callers", "description": "Mock-take, dashboard, settings pages will all call this same query layer — diagram will be updated end of Phase 2" }
+  ],
+  "edges": [
+    { "from": "schema_sql", "to": "connection", "kind": "consumes", "description": "Run on every startup; idempotent" },
+    { "from": "connection", "to": "tbl_users", "kind": "writes" },
+    { "from": "connection", "to": "tbl_classes", "kind": "writes" },
+    { "from": "connection", "to": "tbl_lectures", "kind": "writes" },
+    { "from": "connection", "to": "tbl_los", "kind": "writes" },
+    { "from": "connection", "to": "tbl_pages", "kind": "writes" },
+    { "from": "connection", "to": "tbl_questions", "kind": "writes" },
+
+    { "from": "q_users", "to": "tbl_users", "kind": "reads" },
+    { "from": "q_users", "to": "tbl_users", "kind": "writes" },
+    { "from": "q_classes", "to": "tbl_classes", "kind": "reads" },
+    { "from": "q_classes", "to": "tbl_classes", "kind": "writes" },
+    { "from": "q_lectures", "to": "tbl_lectures", "kind": "reads" },
+    { "from": "q_lectures", "to": "tbl_lectures", "kind": "writes" },
+    { "from": "q_los", "to": "tbl_los", "kind": "reads" },
+    { "from": "q_los", "to": "tbl_los", "kind": "writes" },
+    { "from": "q_pages", "to": "tbl_pages", "kind": "reads" },
+    { "from": "q_pages", "to": "tbl_pages", "kind": "writes" },
+    { "from": "q_questions", "to": "tbl_questions", "kind": "reads" },
+    { "from": "q_questions", "to": "tbl_questions", "kind": "writes" },
+    { "from": "q_questions", "to": "tbl_pages", "kind": "reads", "description": "list_questions_for_lecture JOINs through slide_pages" },
+
+    { "from": "ingest_orchestrator", "to": "q_classes", "kind": "calls", "description": "Reads the factsheet to build the 7-key subset" },
+    { "from": "ingest_orchestrator", "to": "q_lectures", "kind": "calls" },
+    { "from": "ingest_orchestrator", "to": "q_los", "kind": "calls" },
+    { "from": "ingest_orchestrator", "to": "q_pages", "kind": "calls" },
+    { "from": "ingest_orchestrator", "to": "q_questions", "kind": "calls" },
+
+    { "from": "factsheet_cleaner", "to": "q_classes", "kind": "calls", "description": "Writes the cleaned factsheet on class creation; reads it on Class Detail render" }
+  ],
+  "verification": [
+    "All 6 query modules are shown (queries_users, queries_classes, queries_lectures, queries_learning_objectives, queries_pages, queries_questions)",
+    "queries_attempts is intentionally absent — Phase 2 will add it (sidecar doesn't exist yet)",
+    "Each query module has both a 'reads' and a 'writes' edge to its primary table",
+    "The orchestrator (lecture_ingest) is shown calling 5 of the 6 modules — only queries_users is unused during ingestion",
+    "The connection script is shown applying schema.sql to every table on startup",
+    "The 'wipe-and-rerun' D-3.1 policy is mentioned (no migrations) in the schema_sql node description"
+  ]
+}

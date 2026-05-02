@@ -1,0 +1,53 @@
+{
+  "spec_version": 1,
+  "diagram_id": "factsheet_pipeline_v1",
+  "title": "How a factsheet PDF becomes a stored, displayable factsheet",
+  "purpose": "Show the small 2-step pipeline that runs when the user uploads the course factsheet PDF: a Claude call cleans it into structured JSON, and a pure-Python renderer turns the JSON into student-facing Markdown. This is the simplest end-to-end example of the 10-line wrapper pattern used everywhere in the app.",
+  "audience": "non-engineer teammates and the grading teacher",
+  "linked_sidecars": [
+    "app/my_classes/factsheet_clean/factsheet_cleaner.md",
+    "app/my_classes/factsheet_clean/factsheet_cleaner_system_prompt.md",
+    "app/my_classes/factsheet_clean/factsheet_renderer.md",
+    "app/brain/ingestion/pdf_to_md_v3.md",
+    "app/db/queries_classes/queries_classes.md"
+  ],
+  "groups": [
+    { "id": "stage_extract", "label": "Stage 1 — read the factsheet PDF (no AI)" },
+    { "id": "stage_clean", "label": "Stage 2 — clean into structured JSON (Claude call)" },
+    { "id": "stage_persist", "label": "Stage 3 — save to the database" },
+    { "id": "stage_render", "label": "Stage 4 — render for display (pure Python, no AI)" }
+  ],
+  "nodes": [
+    { "id": "factsheet_pdf", "kind": "file_input", "label": "Factsheet PDF", "group": "stage_extract", "description": "Uploaded by the user when creating a class on the My Classes page" },
+    { "id": "pdf_to_md", "kind": "script", "label": "pdf_to_md_v3.extract_with_tables", "group": "stage_extract", "description": "Same converter the lecture pipeline uses — turns PDF into Markdown" },
+    { "id": "factsheet_md", "kind": "file_output", "label": "Raw factsheet Markdown", "group": "stage_extract" },
+
+    { "id": "cleaner_prompt", "kind": "claude_prompt", "label": "factsheet_cleaner_system_prompt.md", "group": "stage_clean", "description": "Tells Claude how to extract a fixed JSON schema (core_course_content, assessment_and_grading, FSLO, surf_extraction_notes, etc.) from messy factsheet text" },
+    { "id": "cleaner", "kind": "claude_call", "label": "factsheet_cleaner.clean_factsheet", "group": "stage_clean", "description": "10-line wrapper: load sibling .md as system prompt, send raw markdown as user message, expect JSON back" },
+    { "id": "cleaned_json", "kind": "file_output", "label": "Cleaned factsheet JSON (strict schema)", "group": "stage_clean", "description": "This is the JSON the lecture pipeline later reads — its 7-key subset (D-1.2) is what gets passed to the LO extractor" },
+
+    { "id": "insert_class", "kind": "db_write", "label": "queries_classes.insert_class", "group": "stage_persist", "description": "Stores the JSON inside one column (classes.factsheet_json) — no separate factsheet table" },
+    { "id": "classes_table", "kind": "db_table", "label": "classes table (factsheet_json column)", "group": "stage_persist" },
+
+    { "id": "renderer", "kind": "script", "label": "factsheet_renderer.render_factsheet", "group": "stage_render", "description": "Pure Python — no API call. Turns cleaned JSON into student-facing Markdown. Empty subsections auto-hide. surf_extraction_notes is intentionally NOT rendered (internal-only, consumed by the LO extractor)" },
+    { "id": "rendered_md", "kind": "file_output", "label": "Student-facing factsheet Markdown", "group": "stage_render", "description": "Shown on the Class Detail page" }
+  ],
+  "edges": [
+    { "from": "factsheet_pdf", "to": "pdf_to_md", "kind": "consumes" },
+    { "from": "pdf_to_md", "to": "factsheet_md", "kind": "produces" },
+    { "from": "factsheet_md", "to": "cleaner", "kind": "consumes" },
+    { "from": "cleaner_prompt", "to": "cleaner", "kind": "consumes" },
+    { "from": "cleaner", "to": "cleaned_json", "kind": "produces" },
+    { "from": "cleaned_json", "to": "insert_class", "kind": "writes" },
+    { "from": "insert_class", "to": "classes_table", "kind": "writes" },
+    { "from": "classes_table", "to": "renderer", "kind": "reads", "description": "Renderer reads the stored JSON when the Class Detail page loads" },
+    { "from": "renderer", "to": "rendered_md", "kind": "produces" }
+  ],
+  "verification": [
+    "Both stages of the pipeline are present: clean (AI) + render (pure Python)",
+    "The 'no AI in the renderer' fact is explicit — teacher should be able to see this is deterministic",
+    "The single-column JSON storage decision is shown (no separate factsheet table)",
+    "The link to the LO extractor's 7-key subset (D-1.2) is mentioned in the cleaned_json node description",
+    "The 10-line wrapper pattern is mentioned on the cleaner node description"
+  ]
+}

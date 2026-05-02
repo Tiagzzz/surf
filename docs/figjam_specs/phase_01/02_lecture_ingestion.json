@@ -1,0 +1,95 @@
+{
+  "spec_version": 1,
+  "diagram_id": "lecture_ingestion_v1",
+  "title": "How a lecture PDF becomes stored MCQs (5-stage pipeline)",
+  "purpose": "Show every step that runs when a user uploads a lecture PDF: which scripts execute, what data flows between them, where each piece lands in the database, and what happens when something fails. The teacher should be able to point at any arrow and ask 'what is being passed here?' and find the answer.",
+  "audience": "non-engineer teammates and the grading teacher",
+  "linked_sidecars": [
+    "app/class_/lecture_ingest/lecture_ingest.md",
+    "app/brain/ingestion/pdf_to_md_v3.md",
+    "app/brain/ingestion/page_splitter/page_splitter.md",
+    "app/class_/lo_extract/lo_extractor.md",
+    "app/class_/mcq_generate/mcq_generator.md",
+    "app/db/queries_lectures/queries_lectures.md",
+    "app/db/queries_learning_objectives/queries_learning_objectives.md",
+    "app/db/queries_pages/queries_pages.md",
+    "app/db/queries_questions/queries_questions.md"
+  ],
+  "groups": [
+    { "id": "stage_1_extract", "label": "Stage 1 — read the PDF (no AI)" },
+    { "id": "stage_2_split", "label": "Stage 2 — slice into slides (no AI)" },
+    { "id": "stage_3_understand", "label": "Stage 3 — find the learning objectives (Claude call #1)" },
+    { "id": "stage_4_generate", "label": "Stage 4 — generate MCQs per slide batch (Claude call #2, runs in batches of 10)" },
+    { "id": "stage_5_persist", "label": "Stage 5 — save everything to SQLite" },
+    { "id": "orchestrator", "label": "Orchestrator (lecture_ingest.py) — the conductor that runs all 5 stages" }
+  ],
+  "nodes": [
+    { "id": "input_pdf", "kind": "file_input", "label": "Lecture PDF", "group": "stage_1_extract", "description": "Uploaded by the user from the My Classes page" },
+    { "id": "pdf_to_md", "kind": "script", "label": "pdf_to_md_v3.extract_with_tables", "group": "stage_1_extract", "description": "Converts the PDF into Markdown and inserts a '--- PAGE N ---' marker between every slide so the next stage knows where each slide ends" },
+    { "id": "lecture_md", "kind": "file_output", "label": "Lecture Markdown (with PAGE markers)", "group": "stage_1_extract" },
+
+    { "id": "page_splitter", "kind": "script", "label": "page_splitter.split_lecture_md", "group": "stage_2_split", "description": "Splits the Markdown on the PAGE markers; returns one record per slide ({page_number, raw_md})" },
+    { "id": "batch_slides", "kind": "function", "label": "page_splitter.batch_slides (size=10)", "group": "stage_2_split", "description": "Groups slides into batches of 10 (D-4.3) so each MCQ call stays manageable" },
+    { "id": "slides_list", "kind": "file_output", "label": "Per-slide records", "group": "stage_2_split" },
+    { "id": "slide_batches", "kind": "file_output", "label": "Batches of ≤10 slides", "group": "stage_2_split" },
+
+    { "id": "factsheet_subset", "kind": "file_input", "label": "Factsheet subset (7 keys, D-1.2)", "group": "stage_3_understand", "description": "Built by _build_factsheet_subset — only 7 keys from the cleaned factsheet are passed to Claude (saves ~40% input tokens)" },
+    { "id": "lo_extractor", "kind": "claude_call", "label": "lo_extractor.extract_los", "group": "stage_3_understand", "description": "One Claude call per lecture. Asks Claude to list the lecture's learning objectives, the page range each one covers, and which pages should be ignored (title slides, dividers, etc.)" },
+    { "id": "lo_response", "kind": "file_output", "label": "{ learning_objectives, ignored_pages, language }", "group": "stage_3_understand" },
+
+    { "id": "mcq_generator", "kind": "claude_call", "label": "mcq_generator.generate_mcqs", "group": "stage_4_generate", "description": "One Claude call per batch of slides (≤10). Returns 1–3 MCQs per kept slide; multi-correct allowed (D-2.5); empty array means 'this slide isn't quiz-worthy' (D-4.8)" },
+    { "id": "validate_mcq", "kind": "function", "label": "_validate_mcq", "group": "stage_4_generate", "description": "Defensive schema check — every MCQ must have 4 options, 4 rationales, and at least one valid correct index" },
+    { "id": "mcq_response", "kind": "file_output", "label": "{ by_slide: [{ page_number, mcqs }, …] }", "group": "stage_4_generate" },
+
+    { "id": "insert_lecture", "kind": "db_write", "label": "queries_lectures.insert_lecture", "group": "stage_5_persist", "description": "Inserts the lectures row up front with status='pending'" },
+    { "id": "insert_lo", "kind": "db_write", "label": "queries_learning_objectives.insert_learning_objective", "group": "stage_5_persist" },
+    { "id": "insert_slide_page", "kind": "db_write", "label": "queries_pages.insert_slide_page", "group": "stage_5_persist", "description": "One row per slide. status='kept' (with LO bound), 'ignored' (skipped page), or 'pending' (no LO covers this page — D-1.5 defensive)" },
+    { "id": "set_slide_page_status", "kind": "db_write", "label": "queries_pages.set_slide_page_status", "group": "stage_5_persist", "description": "Re-flags slides after the MCQ stage: 'ignored' if Claude returned empty mcqs (D-4.8); 'pending' if the whole batch failed twice" },
+    { "id": "insert_question", "kind": "db_write", "label": "queries_questions.insert_question", "group": "stage_5_persist", "description": "One row per validated MCQ. Computes difficulty_word_count now; the other 6 difficulty features stay NULL until Phase 4" },
+    { "id": "set_lecture_status", "kind": "db_write", "label": "queries_lectures.set_lecture_status", "group": "stage_5_persist", "description": "Final flip: 'ready' if every batch succeeded, 'pending' if any batch failed twice" },
+
+    { "id": "ingest_lecture_orchestrator", "kind": "function", "label": "lecture_ingest.ingest_lecture", "group": "orchestrator", "description": "Public entry point. Wires the 5 stages together and applies all the failure policies (D-4.4 retry, D-4.5 partial-success, D-4.7 LO failure halts MCQs, D-4.8 empty mcqs → ignored)" },
+    { "id": "retry_helper", "kind": "function", "label": "_call_with_retry (D-4.4)", "group": "orchestrator", "description": "Every Claude call goes through here: 2 attempts, no backoff, no third try" }
+  ],
+  "edges": [
+    { "from": "input_pdf", "to": "pdf_to_md", "kind": "consumes" },
+    { "from": "pdf_to_md", "to": "lecture_md", "kind": "produces" },
+    { "from": "lecture_md", "to": "page_splitter", "kind": "consumes" },
+    { "from": "page_splitter", "to": "slides_list", "kind": "produces" },
+    { "from": "slides_list", "to": "batch_slides", "kind": "consumes" },
+    { "from": "batch_slides", "to": "slide_batches", "kind": "produces" },
+
+    { "from": "lecture_md", "to": "lo_extractor", "kind": "consumes", "description": "The LO call sees the WHOLE lecture in one go — not the per-slide chunks" },
+    { "from": "factsheet_subset", "to": "lo_extractor", "kind": "consumes" },
+    { "from": "lo_extractor", "to": "lo_response", "kind": "produces" },
+    { "from": "retry_helper", "to": "lo_extractor", "kind": "calls", "description": "2-attempt retry. If both fail, lecture stays 'pending' and MCQs are skipped entirely (D-4.7)" },
+
+    { "from": "slide_batches", "to": "mcq_generator", "kind": "consumes", "description": "One Claude call per batch — sequentially, not in parallel" },
+    { "from": "lo_response", "to": "mcq_generator", "kind": "consumes", "description": "MCQs are only generated for slides whose page is in an LO range and not in ignored_pages" },
+    { "from": "mcq_generator", "to": "mcq_response", "kind": "produces" },
+    { "from": "mcq_response", "to": "validate_mcq", "kind": "consumes" },
+    { "from": "retry_helper", "to": "mcq_generator", "kind": "calls", "description": "2-attempt retry per batch. If a batch fails both attempts, those slides flip to 'pending' but the next batch still runs (D-4.5 partial success)" },
+
+    { "from": "ingest_lecture_orchestrator", "to": "pdf_to_md", "kind": "calls" },
+    { "from": "ingest_lecture_orchestrator", "to": "page_splitter", "kind": "calls" },
+    { "from": "ingest_lecture_orchestrator", "to": "batch_slides", "kind": "calls" },
+    { "from": "ingest_lecture_orchestrator", "to": "lo_extractor", "kind": "calls" },
+    { "from": "ingest_lecture_orchestrator", "to": "mcq_generator", "kind": "calls" },
+
+    { "from": "ingest_lecture_orchestrator", "to": "insert_lecture", "kind": "writes" },
+    { "from": "lo_response", "to": "insert_lo", "kind": "writes" },
+    { "from": "slides_list", "to": "insert_slide_page", "kind": "writes", "description": "Every slide is persisted, with status set from the LO response" },
+    { "from": "validate_mcq", "to": "insert_question", "kind": "writes", "description": "Only validated MCQs get inserted; invalid ones are logged and skipped" },
+    { "from": "ingest_lecture_orchestrator", "to": "set_slide_page_status", "kind": "writes" },
+    { "from": "ingest_lecture_orchestrator", "to": "set_lecture_status", "kind": "writes" }
+  ],
+  "verification": [
+    "All 5 D-4.2 stages appear as groups (extract → split → understand → generate → persist)",
+    "Both Claude calls (lo_extractor, mcq_generator) are shown as kind=claude_call",
+    "The retry helper is shown as connecting to BOTH Claude calls",
+    "The 4 failure-policy decisions are documented in node descriptions: D-4.4 (retry), D-4.5 (partial success), D-4.7 (LO failure halts MCQs), D-4.8 (empty mcqs → ignored)",
+    "The factsheet subset (7 keys, D-1.2) is shown as an input to the LO call",
+    "Every queries_* function the orchestrator calls is shown as a db_write node",
+    "No labeled connectors — relationship meaning lives in sticky notes / node descriptions"
+  ]
+}

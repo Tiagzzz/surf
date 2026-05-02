@@ -1,0 +1,68 @@
+{
+  "spec_version": 1,
+  "diagram_id": "end_to_end_overview_phase1_v1",
+  "title": "Surf at the end of Phase 1 — what works end to end",
+  "purpose": "The elevator-pitch diagram. One page that shows everything Phase 1 can do today: a user uploads a factsheet PDF + lecture PDFs, the two pipelines run, the database fills up, and the data is ready for Phase 2 to build a UI on top of. The teacher should be able to use this single diagram to follow the data from 'user clicks Upload' to 'MCQs are stored and queryable'.",
+  "audience": "non-engineer teammates and the grading teacher",
+  "linked_sidecars": [
+    "app/my_classes/factsheet_clean/factsheet_cleaner.md",
+    "app/my_classes/factsheet_clean/factsheet_renderer.md",
+    "app/class_/lecture_ingest/lecture_ingest.md",
+    "app/db/schema/schema.md"
+  ],
+  "groups": [
+    { "id": "user_inputs", "label": "What the user provides" },
+    { "id": "factsheet_pipe", "label": "Factsheet pipeline (see factsheet_pipeline_v1 for the zoom-in)" },
+    { "id": "lecture_pipe", "label": "Lecture pipeline (see lecture_ingestion_v1 for the zoom-in)" },
+    { "id": "storage", "label": "SQLite database (8 tables — see db_structure_v1)" },
+    { "id": "phase2_ready", "label": "Ready for Phase 2 to consume" }
+  ],
+  "nodes": [
+    { "id": "user", "kind": "ui_page", "label": "User (no UI in Phase 1 — pipelines are called from Python)", "group": "user_inputs", "description": "Phase 2 will add the My Classes page that triggers these pipelines" },
+    { "id": "in_factsheet_pdf", "kind": "file_input", "label": "Factsheet PDF (one per class)", "group": "user_inputs" },
+    { "id": "in_lecture_pdf", "kind": "file_input", "label": "Lecture PDFs (many per class)", "group": "user_inputs" },
+
+    { "id": "factsheet_pipeline", "kind": "script", "label": "factsheet pipeline: clean + render", "group": "factsheet_pipe", "description": "PDF → markdown → Claude (cleaner) → JSON → stored in classes.factsheet_json. Pure-Python renderer turns the JSON into student-facing markdown for display" },
+
+    { "id": "lecture_pipeline", "kind": "script", "label": "lecture pipeline: ingest_lecture (5 stages)", "group": "lecture_pipe", "description": "PDF → markdown with PAGE markers → split into slides → LO extractor (Claude) → MCQ generator (Claude, batched) → DB writes. Honors retry, partial-success, and empty-mcqs policies" },
+
+    { "id": "db_classes", "kind": "db_table", "label": "classes (with cleaned factsheet JSON)", "group": "storage" },
+    { "id": "db_lectures", "kind": "db_table", "label": "lectures (status: pending → ready)", "group": "storage" },
+    { "id": "db_los", "kind": "db_table", "label": "learning_objectives", "group": "storage" },
+    { "id": "db_pages", "kind": "db_table", "label": "slide_pages (kept / ignored / pending)", "group": "storage" },
+    { "id": "db_questions", "kind": "db_table", "label": "questions (the stored MCQs)", "group": "storage" },
+    { "id": "db_attempts", "kind": "db_table", "label": "attempts + attempt_answers (empty in Phase 1 — schema only)", "group": "storage" },
+
+    { "id": "phase2_mock", "kind": "ui_page", "label": "Phase 2: Mock-take page will read questions and write attempts", "group": "phase2_ready" },
+    { "id": "phase2_dashboard", "kind": "ui_page", "label": "Phase 3: Dashboard will read attempts and slide_pages for progress views", "group": "phase2_ready" },
+    { "id": "phase2_review", "kind": "ui_page", "label": "Phase 2: Mock-review page will read attempt_answers + rationales", "group": "phase2_ready" }
+  ],
+  "edges": [
+    { "from": "user", "to": "in_factsheet_pdf", "kind": "produces" },
+    { "from": "user", "to": "in_lecture_pdf", "kind": "produces" },
+
+    { "from": "in_factsheet_pdf", "to": "factsheet_pipeline", "kind": "consumes" },
+    { "from": "factsheet_pipeline", "to": "db_classes", "kind": "writes", "description": "Cleaned factsheet stored as JSON" },
+
+    { "from": "db_classes", "to": "lecture_pipeline", "kind": "reads", "description": "Lecture pipeline reads the 7-key factsheet subset (D-1.2) to ground the LO extractor" },
+    { "from": "in_lecture_pdf", "to": "lecture_pipeline", "kind": "consumes" },
+    { "from": "lecture_pipeline", "to": "db_lectures", "kind": "writes" },
+    { "from": "lecture_pipeline", "to": "db_los", "kind": "writes" },
+    { "from": "lecture_pipeline", "to": "db_pages", "kind": "writes" },
+    { "from": "lecture_pipeline", "to": "db_questions", "kind": "writes" },
+
+    { "from": "db_questions", "to": "phase2_mock", "kind": "reads", "description": "Stored MCQs are picked up by the mock-take page" },
+    { "from": "phase2_mock", "to": "db_attempts", "kind": "writes" },
+    { "from": "db_attempts", "to": "phase2_review", "kind": "reads" },
+    { "from": "db_attempts", "to": "phase2_dashboard", "kind": "reads" },
+    { "from": "db_pages", "to": "phase2_dashboard", "kind": "reads" }
+  ],
+  "verification": [
+    "Both Phase 1 pipelines (factsheet + lecture) are shown end to end",
+    "Both link out to their detailed specs (factsheet_pipeline_v1, lecture_ingestion_v1) via the group labels",
+    "Cross-pipeline dependency is shown: lecture pipeline reads classes.factsheet_json (the 7-key subset)",
+    "Phase 2 / Phase 3 consumers are shown but visually marked as future work — explains why attempts + attempt_answers tables are empty in Phase 1",
+    "All 8 tables appear (users implicit through classes.user_id)",
+    "No labeled connectors"
+  ]
+}

@@ -39,10 +39,18 @@ The video track (Juliette + Cons) runs in parallel with code from Phase 2 onward
 **Success Criteria** (what must be TRUE):
   1. First launch routes the user through P1 Sign Up (username + Anthropic API key validated against Anthropic before save); subsequent launches skip P1 because `~/.surf/user.sqlite` exists.
   2. From P2 My Classes, the user can launch the Add Class flow, upload a factsheet PDF, review the cleaned JSON, and save the class — the class then appears as a card.
-  3. From P3 Class, the user can upload a lecture PDF (triggering Phase-1 ingestion live), pick N lectures, and launch a Standard mock of `5 × N` questions; or pick one LO and launch a PRACTICE mock of 1-question-per-slide.
+  3. From P3 Class, the user can upload a lecture PDF (triggering Phase-1 ingestion live), pick N lectures, and launch a Standard mock of `5 × N` questions; or tap the sidebar Study Next card to launch a PRACTICE mock of every MCQ tied to the surfaced LO's page range (per 02-CONTEXT D-2.8 + D-4.3).
   4. P4 renders one MCQ at a time with a total-elapsed timer, SKIP/NEXT actions, mock pinned in `st.session_state`, and persists the attempt + answers to SQLite on completion.
   5. P5 shows each question's correctness, the Claude rationale, the question's 6 difficulty scores, and the Swiss-formula final note (`5 × correct/max + 1`).
-**Plans**: TBD
+**Plans**: 7 plans
+Plans:
+- [ ] 02-01-PLAN.md — Wave 1 foundation: Figma tokens + theme files + previews/ scaffold + 15 sidecar walkthrough back-fill + spikes Q1/Q3/Q4/Q8
+- [ ] 02-02-PLAN.md — Wave 2: P1 Sign Up + queries_users + auth router upgrade
+- [ ] 02-03-PLAN.md — Wave 2: P2 My Classes carousel + Add Class flow (validates PIPE-02 end-to-end)
+- [ ] 02-04-PLAN.md — Wave 3: P3 Class hub + live ingestion + lecture multi-select + build_mock + study_next + REQUIREMENTS amendment
+- [ ] 02-05-PLAN.md — Wave 4: P4 Take Mock (timer fragment, MCQ card, UPSERT-on-nav, schema constraint amendment)
+- [ ] 02-06-PLAN.md — Wave 4: P5 Review Mock + brain/grading_formula (Swiss formula single source of truth)
+- [ ] 02-07-PLAN.md — Wave 5: E2E AppTest happy path + sidecar audit + decision coverage table + final visual sweep
 **UI hint**: yes
 
 ### Phase 3: Dashboard + Settings (P6–P7)
@@ -89,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Ingestion Spine + Database | 4/5 | In progress | - |
-| 2. Mock Taking Loop (P1–P5) | 0/TBD | Not started | - |
+| 2. Mock Taking Loop (P1–P5) | 0/7 | Planned | - |
 | 3. Dashboard + Settings (P6–P7) | 0/TBD | Not started | - |
 | 4. ML Difficulty Model | 0/TBD | Not started | - |
 | 5. Submission Package | 0/TBD | Not started | - |

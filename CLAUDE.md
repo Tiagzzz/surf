@@ -142,6 +142,38 @@ pytest -q          # smoke test in tests/test_smoke.py (skips on missing optiona
 ruff check .       # config in pyproject.toml (E/F/I, line 100, py311)
 ```
 
+## Visual preview gate (non-negotiable for Phase 2+)
+
+Every plan task that creates or modifies a visual element or page must ship a **preview gate** alongside the production code. Code review of Streamlit visuals is unreliable; only a running preview tells the truth.
+
+**Sandbox isolation — non-negotiable:**
+
+Previews live in `previews/` at the repo root, **outside `app/`**. Previews must NOT import from `app/`. When you need production code in a preview, **copy** the file(s) into the sandbox — don't reach into `app/` at runtime. Closed sandboxes mean a preview can never accidentally touch the user's real DB, real API key, or real session.
+
+**Structure:**
+
+- `previews/` — top-level folder, sibling of `app/`.
+- `previews/_fixtures.py` — shared **pure data** (Python dicts/lists for fake user, class, mock, MCQs, attempts). No imports from `app/`. Sandboxes import this OR copy from it — either is fine.
+- `previews/components/<component>/` — one sandbox per reusable visual component (`card/`, `mcq_card/`, `timer_header/`, `ingestion_log/`, `factsheet_renderer/`, etc.). Each sandbox contains: a copy of the production component code, any helpers it needs (also copies), and a `preview.py` entry point.
+- `previews/pages/<page>/` — one sandbox per page (`p1_signup/`, `p2_my_classes/`, `p3_class_hub/`, `p4_take_mock/`, `p5_review_mock/`). Each sandbox copies the page wrapper plus its component dependencies, then composes them in `preview.py`.
+
+**Sandbox rules:**
+
+- No `from app...` imports inside any `previews/` file. (Enforce with a ruff rule or smoke check.)
+- No real Anthropic calls — sandboxes use stubbed responses (a fake `call_claude` returning hard-coded JSON).
+- No real DB — sandboxes use `:memory:` SQLite or fixture dicts.
+- Sandbox copies drift from `app/` deliberately. When a production component changes meaningfully, the next visual task on that component refreshes the sandbox copy and re-runs the preview gate. Drift is a feature: it forces a re-approval cycle.
+
+**Per-task acceptance criteria must include:**
+
+1. The sandbox path being created/updated (e.g., `previews/components/mcq_card/`).
+2. The exact `streamlit run previews/.../preview.py` command Tiago runs.
+3. The line: "Tiago has visually approved the preview" — task is NOT done without this.
+
+**Atomic commits:** production code + sandbox updates land in the same commit.
+
+**Out of scope for the gate:** infra-only tasks (DB schema, ingestion glue, claude_client wrappers) that ship no visible UI. Those follow normal verification.
+
 ## Branch + commit
 
 - Solo work: direct push to `main` is OK for small fixes.
