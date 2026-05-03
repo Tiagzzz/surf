@@ -1,0 +1,101 @@
+# Wave-1 spike reports
+
+Three time-boxed risk-reduction spikes (RESEARCH §11) decide whether
+specific Streamlit patterns are safe to ship in Plans 02-04 and 02-05.
+Each spike's verdict is recorded here AND mirrored in
+`02-WIDGETS.md ## Spike reports` so plan readers find it from either
+direction.
+
+| Spike | RESEARCH ref | Owner plan | Status | Sandbox |
+|---|---|---|---|---|
+| Q3 — Card Interactive overlay | §11 Q3 | 02-04 (P3 lecture multi-select) | TBD | `previews/spikes/card_interactive_overlay/preview.py` |
+| Q4 — Fragment timer 5-min memory | §11 Q4 | 02-05 (P4 mock timer) | **PENDING-RUN** (sandbox built; Tiago to execute) | `previews/spikes/fragment_timer/preview.py` |
+| Q8 — `@st.cache_resource` on `connection.py` | §11 Q8 | 02-04, 02-05, 02-06 (every page that opens DB) | TBD | (production change to `app/db/connection.py` + `tests/test_db_connection_cache_resource.py`) |
+
+---
+
+## Q4 verdict — fragment timer 5-min memory test
+
+**Status:** **PENDING-RUN.** Sandbox built and runnable; awaits a live
+5-minute RSS measurement that this Bash session cannot perform from
+inside the executor.
+
+### What the sandbox does
+
+`previews/spikes/fragment_timer/preview.py` renders a `@st.fragment(run_every="1s")`
+that paints an "ELAPSED MM:SS" counter inside a passive card. Outside
+the fragment, a Reset button + an unrelated checkbox + an outer-script
+rerun counter sit as the state-isolation test.
+
+The fragment-isolation contract being verified:
+
+1. **Single-body re-execution:** the fragment body re-runs on the 1 Hz
+   tick; the outer script does NOT re-run (the outer-rerun counter
+   should only increment on user interaction).
+2. **State persistence:** `st.session_state["mock_start_ts"]` is set
+   once on first session entry; the fragment reads it on every tick to
+   compute elapsed seconds. Reset button rewrites it.
+3. **No state bleed:** toggling the unrelated checkbox triggers a
+   normal outer rerun; the timer must keep ticking from wherever it
+   was, NOT reset to 0.
+4. **No memory leak:** RSS growth across 5 minutes < 10 MB on the
+   `streamlit` Python process.
+
+### Run command
+
+```
+streamlit run previews/spikes/fragment_timer/preview.py
+```
+
+### Measurement protocol (Tiago to execute)
+
+1. Open Activity Monitor (Cmd-Space → "Activity Monitor"). Switch to
+   the **Memory** tab. Find the `streamlit` Python process (the row
+   whose Command column references the spike's preview.py).
+2. Note the **Memory** value (RSS) and the wall-clock time. Round
+   to the nearest MB.
+3. Wait 5 minutes by the clock. Watch the timer in the browser tick
+   from 00:00 toward 05:00.
+4. During the 5 minutes, toggle the unrelated checkbox at least 3
+   times. The timer card MUST keep counting up; it must NOT reset.
+5. After 5 minutes, re-read the RSS in Activity Monitor.
+6. **PASS criteria:**
+   - RSS growth < 10 MB across the 5 minutes.
+   - Timer never reset on checkbox toggle (state isolation held).
+   - Outer-rerun counter incremented only on Reset / checkbox click,
+     not on each fragment tick (fragment isolation held).
+
+### Verdict — to be filled by Tiago
+
+```
+RSS at t=0:    ___ MB
+RSS at t=5min: ___ MB
+Delta:         ___ MB
+Timer-state isolation: PASS / FAIL
+Outer-rerun isolation: PASS / FAIL
+
+Q4 verdict: PASS / FAIL
+```
+
+### Chosen approach (conditional on verdict)
+
+- **PASS:** Plan 02-05 (P4 Take Mock) ships the
+  `@st.fragment(run_every="1s")` pattern for the elapsed-time timer in
+  the topbar. Sandbox path becomes the canonical reference.
+- **FAIL:** Fall back to a manual re-render-on-nav timer — elapsed
+  recomputed only on Next/Prev/Skip/Submit click. The trade-off is
+  that the user sees a stale "elapsed: 12:34" between clicks instead
+  of a live tick; functionality is unaffected (mock duration is
+  recorded from `started_at` to `finished_at` server-side regardless).
+
+---
+
+## Q3 verdict — Card Interactive overlay-button (RESEARCH §11 Q3)
+
+**Status:** TBD. To be filled by Plan 02-01 Task 7.
+
+---
+
+## Q8 verdict — `@st.cache_resource` on `app/db/connection.py` (RESEARCH §11 Q8)
+
+**Status:** TBD. To be filled by Plan 02-01 Task 8.

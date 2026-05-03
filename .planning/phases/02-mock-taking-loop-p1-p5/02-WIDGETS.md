@@ -265,10 +265,23 @@ theme bench is approved.
 
 ### Q4 — Fragment timer 5-min memory test
 
-**Status:** Pending — spike runs as Task 6 of plan 02-01.
+**Status:** **PENDING-RUN.** Sandbox built at
+`previews/spikes/fragment_timer/preview.py` (Plan 02-01 Task 6); awaits
+a live 5-minute RSS measurement that the executor agent cannot perform.
+Tiago runs the test per the protocol in `previews/spikes/SPIKES.md § Q4`
+and records the verdict there.
 
-> Verdict + chosen approach will be filled in by Task 6. Plan 05 (P4
-> mock timer) inherits whichever pattern wins.
+**Run command:** `streamlit run previews/spikes/fragment_timer/preview.py`
+
+**Q4 verdict:** PENDING-RUN — to be filled in `previews/spikes/SPIKES.md`
+once Tiago executes the 5-minute test.
+
+**Chosen approach (conditional):**
+- PASS → Plan 02-05 (P4 Take Mock) ships `@st.fragment(run_every="1s")`
+  for the elapsed-time timer in the topbar.
+- FAIL → fallback is a manual re-render-on-nav timer (recompute elapsed
+  only on Next / Prev / Skip / Submit click; mock duration still
+  recorded server-side via `attempts.started_at` → `finished_at`).
 
 ### Q8 — `@st.cache_resource` on `app/db/connection.py`
 
