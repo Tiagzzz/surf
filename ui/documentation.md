@@ -1,7 +1,7 @@
 # Surf — Design System Documentation
 
 > **Audience:** Tiago + teammates. **Not** consumed by Claude tooling — this is a documentation artifact.
-> **Status:** STUB scaffolded 2026-05-02 during phase 2 planning. Sections marked `[TBD — plan 02-01]` are filled by the Figma component-logic researcher (per `02-CONTEXT.md` D-2.26) before plan 02-01 execution closes. Sections marked `[fills as waves close]` accrete content during phase 2 execution and continue in later phases.
+> **Status:** § 5 (component catalog) and § 8 (DOM reach map) filled 2026-05-03 during Plan 02-01 Task 10 from the Figma component-logic research (`02-FIGMA-RESEARCH.md` per D-2.26) plus the actual selectors shipped in `app/brain/theme/theme.py`. Sections marked `[fills as waves close]` accrete content during phase 2 execution and continue in later phases.
 > **Source of truth for visuals:** the locked Figma library `https://www.figma.com/design/EYjkvHArrBonuiG2JUS2sE/SURF_UI`. Key frames are cached in `docs/design/figma_exports/`.
 
 ---
@@ -122,42 +122,177 @@ Transitions only — **no `@keyframes`.** The hover stamp-shadow IS the signatur
 
 ## 5. Component catalog
 
-[TBD — plan 02-01 — researcher fills one section per scoped component, sourced from `theme.py` + the Figma component descriptions]
+Every component shipping in `app/brain/theme/theme.py` `_CSS` plus the Python helpers in the same module. Use the section headings to ⌘-F your way around. The reference screenshots live under `docs/design/figma_exports/` (currently `node_25-2.png` for the components page and `node_4045-282_mcq_take_mock.png` for the Take-Mock card).
 
-Each component section will have:
+### Buttons
 
+#### btn-default
+**`st.container(key="btn-default")` wrapper** — primary CTA, dark-ink fill (`--paper-5`), white text, JetBrains Mono Bold caps-tracked label, 3 px stamp shadow.
+Use when: there's exactly ONE primary action on the page (Save Class, Take Mock, Submit Answer).
+Don't use when: the action is destructive (use `btn-tinted-warn`) or secondary (use `btn-soft`).
+Recipe: `with st.container(key="btn-default"): st.button("Take mock")`.
+
+#### btn-ghost
+**`st.container(key="btn-ghost")` wrapper** — outlined-only, no fill, no stamp shadow. 1.5 px paper-4 border that darkens to paper-5 on hover.
+Use when: the button is paired with a `btn-default` and needs to look secondary (Cancel, Skip). Or when the action is non-committal (Preview, Reset).
+Don't use when: it's the ONLY button on the page — `btn-soft` reads better as a sole CTA.
+
+#### btn-soft
+**`st.container(key="btn-soft")` wrapper** — paper-1 fill, paper-5 text, 2 px stamp-soft shadow. Quietest of the four families.
+Use when: tertiary actions (Save Draft, Show Raw JSON, Open Settings).
+Don't use when: there's already a `btn-ghost` doing the secondary job — pick one and stick with it.
+
+#### btn-tinted-accent
+**`st.container(key="btn-tinted-accent")` wrapper** — Surf-red fill (`--accent-vibrant`), white text. The "this commits to something" button.
+Use when: the action triggers a Claude call, writes to DB, or otherwise commits real work (Generate Mock, Submit Answer, Save Class).
+Don't use when: the action is reversible by a single click (use `btn-default` instead).
+
+#### btn-tinted-ok / btn-tinted-info / btn-tinted-warn
+**`st.container(key="btn-tinted-{ok,info,warn}")` wrapper** — Status-colored fills (green, blue, amber). White text. 3 px stamp shadow + `filter: brightness(0.9)` on hover.
+Use when: the button conveys a status meaning (OK = confirm/proceed, Info = view details, Warn = irreversible/destructive).
+Don't use when: as a generic CTA — pick `btn-default` or `btn-tinted-accent` to keep the status colors meaningful.
+
+### Cards
+
+#### card-passive
+**`st.container(key="card-passive")` wrapper** — paper-0 surface, 1.5 px paper-2 border, 6 px radius, 2 px stamp-soft shadow. **Non-interactive.**
+Use when: displaying read-only content that has shape but no click target (a stat group, a quote, a summary block).
+Don't use when: any child element accepts a click — promote to `card-interactive`.
+
+#### card-interactive
+**`st.container(key="card-interactive")` wrapper** — same surface as passive but with a 4 px stamp shadow that grows to 6 px on hover, plus a `translate(-2px, -2px)` lift. Click-active.
+Use when: the whole card body is the click target (lecture-card on P3, attempt-card on P5).
+Don't use when: only one inner element is clickable — use `card-passive` and put the button inside.
+
+#### class-card
+**`st.container(key="class-card")` wrapper** — class-grid card on P2 My Classes. Paper bg (warmer than `card-*`), 1.5 px paper-4 border, 4 px stamp shadow, **22/24 padding (Defect 7 ruling)**, 16 px bottom margin.
+Use when: rendering one class entry on the P2 grid.
+Don't use when: rendering anywhere else — `card-interactive` is the generic equivalent.
+
+#### stat-card
+**`st.container(key="stat-card")` wrapper** — KPI tile with `min-height: 110px` + flex column + `space-between` so a one-digit value and a long label keep the same card height. Paper-0 fill, 14/18 padding, 2 px stamp-soft shadow.
+Use when: displaying a single number alongside a label and optional delta arrow (P6 Dashboard tiles, P5 review summary).
+Don't use when: the content is multi-paragraph — use `card-passive`.
+
+### MCQ option (D-2.20 + D-2.20a)
+
+#### mcq-opt-{question_id}-{option_letter}
+**`st.container(key="mcq-opt-{q}-{letter}")` wrapper** — the live P4 take-mock option. Container key is just option identity; CSS branches on `:has(input:checked)` to flip Off↔On.
+Variants:
+- **Off** (default, `:not(:has(input:checked))`): paper-1 bg, 1 px paper-shadow border, no shadow, 13/14 padding.
+- **On** (live, `:has(input:checked)`): paper-0 bg, 2 px paper-shadow border, 2 px stamp shadow, 14/15 padding (compensates for the 1→2 px border widen so text x-position stays stable).
+
+Use when: rendering option checkboxes on P4. Click anywhere on the wrapper toggles the inner checkbox via the standard label-wrapping behaviour.
+Don't use when: the option is in P5 review state — use the `-correct` / `-incorrect` review variants below.
+
+#### mcq-opt-{key}-correct / mcq-opt-{key}-incorrect
+**State-baked review keys.** Used ONLY on P5 mock-review screens — the wrapper key is set at render time based on the user's saved answer.
+- **Correct:** ok-wash bg, 2 px ok border, 2 px stamp shadow, 14/15 padding.
+- **Incorrect:** accent-soft bg, 2 px accent-deep border, 2 px stamp shadow, 14/15 padding.
+
+Why state-baked here vs `:has()` for Off/On: P5 paints a static review of a finished attempt; there's no user click to react to.
+
+### MCQ card container (D-2.23)
+
+#### mcq-card
+**`st.container(key="mcq-card")` wrapper** — the frame around the question header (Q-number + class + difficulty) + question text + option stack + action row. Paper bg, 2 px paper-shadow border, 6 px radius, 3 px stamp shadow, 22/20/20/20 padding (locked Figma value, exception to the symmetric-padding rule per Defect 3 ruling), max-width 600 px, 13 px vertical gap between sections.
+Use when: rendering the live take-mock card on P4 or the review card on P5.
+Don't use when: anywhere else — the geometry is locked to the Figma 4045:282 spec.
+
+### Difficulty display (D-2.24)
+
+#### difficulty-stars
+**Python helper `difficulty_stars(score: float)`** — paints 5 SVG stars in `assets/icons/star_{filled,empty}.svg`, with `n = max(1, min(5, round(score * 5)))` filled. Inlined as SVG (no `<img>` tags per D-2.24).
+Use when: a question has a non-NULL `difficulty_score` and you want to render the stars chip.
+Don't use when: `difficulty_score` is NULL — render the dashed-frame "—" placeholder instead at the call site.
+
+### Chip (D-2.19)
+
+#### surf-chip
+**Python helper `chip(text, variant=...)`** — returns the HTML for one inline tag. Compose rows via `chips_row(items)`.
+Variants: `outline` (default — paper-4 border, no fill), `accent` (accent-vibrant border + text), `solid` (paper-5 fill, paper-0 text), `dashed` (dashed border).
+Use when: short labels that group with siblings (lecture tags, MCQ category, status flags).
+Don't use when: longer than ~3 words — text starts wrapping inside the pill which looks awkward.
+
+### Steps indicator (D-2.19)
+
+#### surf-steps
+**Python helper `steps(items)`** — inline step row with bullets. Each item is `(label, status)` where status ∈ `done / active / todo`.
+Use when: onboarding (Sign up → Add class → Take mock) or wizard flow indicators.
+Don't use when: more than ~5 steps — wraps awkwardly even with `flex-wrap`.
+
+### Score (D-2.19)
+
+#### surf-score
+**Python helper `score(value: float)`** — renders the Swiss 1-6 grade as big italic Fraunces, color-keyed:
+- `< 3.5` → `--accent-vibrant` (red)
+- `3.5–4.99` → `--warn` (gold)
+- `≥ 5.0` → `--ok` (green)
+
+Use when: surfacing a Swiss grade on P2 class cards or the P5 summary banner.
+Don't use when: rendering a percentage (use `stat-card` with `--paper-5` text instead).
+
+### Stat helpers
+
+#### surf-stat-value, surf-delta-{up,down,flat}
+**Python helper `stat_card(label, value, eyebrow_text, delta, delta_dir)`** — writes the four typography lines of a KPI: eyebrow + label + big italic value + optional delta arrow.
+Variants: `delta_dir` ∈ `up` (▲ green) / `down` (▼ red) / `flat` (— grey).
+Use when: KPI tile contents (P6 dashboard).
+
+### Topbar (D-2.10 + Defect 4 + 9 amendments)
+
+#### topbar
+**`st.container(key="topbar")` wrapper** — the page header strip: brand wordmark, breadcrumb, icon buttons. 14 px top padding, 0 px bottom padding (the bottom border IS the separator line — explicit exception to the symmetric-padding rule). 32 px bottom margin.
+Use when: every authenticated page (P2-P7) starts with this. P1 sign-up doesn't have a topbar.
+
+#### topbar-icon-{home,settings}
+**`st.container(key="topbar-icon-{home,settings}")` wrapper** — 38×38 icon button. Glyph 22 px, flex-centred, transparent fill, 1.5 px paper-4 border. Hover lifts to paper-1 + 2 px stamp-soft shadow. **No underline** (Defect 9 broad strip handles BaseWeb's focus/focus-visible/hover lines).
+Use when: top-bar quick actions (Home, Settings, future Search).
+
+### Empty state
+
+#### empty
+**`st.container(key="empty")` wrapper** — dashed paper-3 border, 6 px radius, 36/28 padding, flex-column with both-axis centring (Defect 5).
+Use when: a list page is empty (no classes, no mocks, no attempts).
+Recipe:
 ```
-### {component-name}
-**`st.container(key="{key}")` wrapper** — {1-line description}
-
-Variants: {list}
-Use when: {rule}
-Don't use when: {anti-pattern}
-
-Composition recipe:
-    with st.container(key="..."):
-        st.button(...)
-
-Reference: docs/design/figma_exports/{node}.png
+with st.container(key="empty"):
+    empty_state_text("Nothing here yet", "Add your first class to get started.")
+    with st.container(key="btn-default-cta"):
+        st.button("Add a class")
 ```
 
-**Components in scope for Phase 2** (initial list — researcher reconciles against Figma for any I missed):
+### `st.status` skin (D-2.21)
 
-- `btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-{accent,ok,info,warn}`
-- `card-passive`, `card-interactive`, `class-card`, `stat-card`
-- `topbar`, `topbar-icon-{home,settings}`
-- `empty` (with `empty_state_text()` helper)
-- `mcq-opt-{off,on,correct,incorrect}` (D-2.20 spec)
-- `mcq-card` (D-2.23 spec)
-- `difficulty-display` (D-2.24 spec — 5-star)
-- `chip` (4 variants: outline, accent, solid, dashed)
-- `step` (3 states: done, active, todo)
-- `surf-score` (3 thresholds: low / mid / high)
-- `surf-stat-value`, `surf-delta-{up,down,flat}`
-- `summary-banner` (P5 — to be added during plan 02-06)
-- `sidebar-list` pattern for Past Attempts (P3 — to be specified during plan 02-04b)
-- `expander` skin (P5 difficulty breakdown — D-2.21)
-- `status` skin (P3 ingestion log — D-2.21)
+#### stStatus / stStatusWidget
+Reach via `[data-testid="stStatus"]` and `[data-testid="stStatusWidget"]` (both selectors covered for cross-version compatibility). 4 px left-border `--accent-vibrant` while running, `--ok` when complete, `--accent-vibrant` when error. Paper-1 bg, eyebrow-style mono uppercase summary text.
+Use when: P3 lecture ingestion progress block.
+
+### `st.expander` skin (D-2.21)
+
+#### stExpander
+Reach via `[data-testid="stExpander"]`. Paper-1 bg, 6 px radius, 1.5 px paper-3 border. Hover lifts `(-1px, -1px)` + 2 px stamp-soft shadow + paper-0 bg.
+Use when: collapsible "more details" panels (P5 difficulty breakdown).
+
+### Typography helpers (D-2.19)
+
+#### serif-h2 + heading_h2
+**Python helper `heading_h2(text)`** — emits `<h2 class="serif-h2">…</h2>` (Fraunces SemiBold Italic 28 / 115% / -1% — Figma `Serif/H2` row, ruling Defect 6). Both bare `<h2>` (auto-rendered by `st.markdown("## …")`) and the `.serif-h2` utility class paint identically; callers can mix them.
+
+#### surf-eyebrow + eyebrow
+**Python helper `eyebrow(text)`** — Mono uppercase tracking-out 10 px `--paper-3`. Section labels above content blocks.
+
+#### surf-caption + caption
+**Python helper `caption(text)`** — Serif italic 13 px `--paper-3`. Helper text under headings.
+
+#### surf-meta + meta
+**Python helper `meta(text)`** — Mono mid-grey 11 px. Card metadata strips ("12 LECTURES · 78%").
+
+### Surfaced-but-deferred (built in later plans)
+
+- **summary-banner** (P5 final score, plan 02-06) — full-width paper-0 panel + 4 px stamp shadow + `score()` helper. Wrapper key reserved as `summary-banner`.
+- **sidebar-list** (P3 Past Attempts, plan 02-04) — clickable list items with paper-2 dividers. Wrapper key `sidebar-list`.
+- **file-uploader-skin** (P2 factsheet drop, plan 02-03 / 02-04) — `[data-testid="stFileUploader"]` skin. Drop-zone vs button-style still open (see § 11).
 
 ---
 
@@ -193,24 +328,55 @@ A `@media (prefers-reduced-motion: reduce)` block at the bottom of `_CSS` disabl
 
 > The most important section if you're building a new page. **You almost never need new CSS** if you wrap the right Streamlit widget in `st.container(key="...")`.
 
-[TBD — plan 02-01 — researcher fills one row per Streamlit widget Phase 2 uses]
+### 8.1 By Streamlit widget — what `data-testid` reaches it
 
-**Initial table** (researcher expands):
-
-| Streamlit widget | DOM selector | Wrapper key activates… |
+| Streamlit widget | `data-testid` selector | Used by which wrapper keys |
 |---|---|---|
-| `st.button(...)` | `[data-testid="stButton"] button` | `btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-*` |
-| `st.text_input(...)` | `[data-testid="stTextInput"] input` | (no wrapper needed — global rule) |
-| `st.text_area(...)` | `[data-testid="stTextArea"] textarea` | (no wrapper needed) |
-| `st.checkbox(...)` | `[data-testid="stCheckbox"] label` | `mcq-opt-{state}` (with custom 20×20 checkbox glyph) |
-| `st.radio(...)` | `[data-testid="stRadio"] label[data-baseweb="radio"]` | (used elsewhere — for MCQ, prefer the unified checkbox per D-2.20) |
-| `st.selectbox(...)` | `[data-testid="stSelectbox"] div[data-baseweb="select"]` | (no wrapper needed) |
-| `st.slider(...)` | `[data-testid="stSlider"] [role="slider"]` | (no wrapper needed) |
-| `st.tabs(...)` | `.stTabs [data-baseweb="tab"]` | (no wrapper needed) |
-| `st.expander(...)` | `[data-testid="stExpander"]` | (D-2.21 skin pending) |
-| `st.status(...)` | `[data-testid="stStatusWidget"]` | (D-2.21 skin pending) |
-| `st.file_uploader(...)` | `[data-testid="stFileUploader"]` | (skin pending) |
-| `st.sidebar.{...}` | `[data-testid="stSidebar"]` | (P3 sidebar layout, plan 02-04b) |
+| `st.button(...)` | `[data-testid="stButton"] button` | `btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-{accent,ok,info,warn}`, `topbar-icon-*`, any `card-interactive` overlay-button (Q3 spike) |
+| `st.download_button(...)` | `[data-testid="stDownloadButton"] button` | inherits the same Mono caps-tracked label rule via the global Buttons block |
+| `st.text_input(...)` | `[data-testid="stTextInput"] input` | (global rule — no wrapper needed) |
+| `st.text_area(...)` | `[data-testid="stTextArea"] textarea` | (global rule) |
+| `st.number_input(...)` | `[data-testid="stNumberInput"] input` | (global rule) |
+| `st.date_input(...)` | `[data-testid="stDateInput"] input` | (global rule) |
+| `st.time_input(...)` | `[data-testid="stTimeInput"] input` | (global rule) |
+| `st.checkbox(...)` | `[data-testid="stCheckbox"] label`, plus `[data-baseweb="checkbox"] > div:first-child` for the 20×20 glyph | `mcq-opt-*` (custom 20×20 glyph + `:has(input:checked)` Off↔On flip) |
+| `st.radio(...)` | `[data-testid="stRadio"] label[data-baseweb="radio"]` | (legacy — Phase 2 uses the unified MCQ checkbox per D-2.20) |
+| `st.selectbox(...)` | `[data-testid="stSelectbox"] div[data-baseweb="select"]` | (global rule) |
+| `st.multiselect(...)` | `[data-testid="stMultiSelect"]` | (global label rule; widget body styled by global rule) |
+| `st.slider(...)` | `[data-testid="stSlider"] [role="slider"]` | (global rule — accent-vibrant thumb) |
+| `st.toggle(...)` | `[data-testid="stToggle"] label` | (global label rule) |
+| `st.tabs(...)` | `.stTabs [data-baseweb="tab"]` and `[data-baseweb="tab-list"]` | (global rule) |
+| `st.expander(...)` | `[data-testid="stExpander"]` and `[data-testid="stExpander"] summary` | (D-2.21 skin — paper-1 bg, hover lift) |
+| `st.status(...)` | `[data-testid="stStatus"]` AND `[data-testid="stStatusWidget"]` (both selectors for cross-version compat); summary via `summary` element | (D-2.21 skin — left-border state colors) |
+| `st.file_uploader(...)` | `[data-testid="stFileUploader"]` | (skin pending — P2 / P3 plans 02-03 / 02-04) |
+| `st.sidebar.{...}` | `[data-testid="stSidebar"]` | (P3 sidebar layout — plan 02-04) |
+| `st.markdown(..., unsafe_allow_html=True)` paragraphs | `[data-testid="stMarkdownContainer"] p.surf-*` | every typography helper (`surf-eyebrow`, `surf-caption`, `surf-meta`, `surf-score`, `surf-stat-value`, etc.) |
+| `st.alert(...)` / `st.info` / `st.success` / `st.warning` / `st.error` | `[data-testid="stAlertContainer"]` | (global rule — paper-3 border, serif body) |
+| Vertical block (auto-emitted by `st.container`) | `[data-testid="stVerticalBlock"]` | used inside `mcq-card` to set 13 px gap; inside `empty` to centre children |
+| Horizontal block (auto-emitted by `st.columns`) | `[data-testid="stHorizontalBlock"]` | used inside `empty` to centre buttons |
+
+### 8.2 By wrapper key — which `data-testid` selectors does the rule reach?
+
+For the inverse view (you have a `st-key-X` wrapper, what does its CSS rule actually paint into?):
+
+| Wrapper key | Reaches into… |
+|---|---|
+| `btn-default`, `btn-ghost`, `btn-soft`, `btn-tinted-*` | `[data-testid="stButton"] button` (and its inner `<p>`) |
+| `card-passive`, `card-interactive`, `class-card`, `stat-card` | the wrapper `<div>` itself plus inner `[data-testid="stMarkdownContainer"] p.surf-*` for typography helpers it contains |
+| `mcq-card` | wrapper `<div>` + `[data-testid="stVerticalBlock"]` inside it (13 px gap) |
+| `mcq-opt-{q}-{letter}` | wrapper `<div>` + `[data-testid="stCheckbox"] svg` (hidden) + `[data-baseweb="checkbox"] > div:first-child` (custom 20×20 glyph) + `[data-testid="stCheckbox"] > label` (full-width click target). Off/On driven by `:not(:has(input:checked))` / `:has(input:checked)` per D-2.20a. |
+| `mcq-opt-{key}-correct`, `mcq-opt-{key}-incorrect` | same as above but state-baked via the suffix class |
+| `topbar` | wrapper `<div>` (border-bottom = the separator line) |
+| `topbar-icon-*` | `[data-testid="stButton"] button` inside, plus `<p>`, `<a>`, `[data-baseweb="button"]` and every descendant via the Defect-9 belt-and-braces strip |
+| `empty` | wrapper `<div>` + `[data-testid="stMarkdownContainer"] p` (centred) + `[data-testid="stVerticalBlock"]` / `[data-testid="stHorizontalBlock"]` (centred children) |
+| `summary-banner` (reserved, plan 02-06) | row pending — filled when 02-06 ships |
+| `sidebar-list` (reserved, plan 02-04) | row pending — filled when 02-04 ships |
+
+### 8.3 Selector style rules
+
+- **Use `[class*="st-key-XYZ"]`**, not `.st-key-XYZ`. Streamlit appends a stable hash but the literal `st-key-{exact-string}` portion is preserved as a SUBSTRING of the class attribute, not a single class name.
+- **Use `data-testid="…"` for widget reach**, not class names. Streamlit renames its emotion-CSS class names per build; `data-testid` is documented as stable.
+- **No `.stApp` selector for component-level rules** — that's the page root; scoping there leaks into the entire app.
 
 ---
 
@@ -243,7 +409,8 @@ ui/documentation.md           — this file
 
 [fills as waves close]
 
-- [ ] Is the Figma library `SURF_UI(old)` superseded by a non-`(old)` revision? (Researcher to check during plan 02-01 per D-2.26.)
+- [x] Is the Figma library `SURF_UI(old)` superseded by a non-`(old)` revision? — **Resolved** during Plan 02-01 (researcher run at commit `4a60394`): the file is canonical; the `(old)` suffix is a vestigial library-rename artefact. See `02-FIGMA-RESEARCH.md § 1` (Verdict).
 - [ ] Should the `summary-banner` on P5 use the stamp shadow or sit flush? (Plan 02-06.)
-- [ ] How should the file uploader (P2 factsheet, P3 lecture) skin? Drop-zone vs button-style? (Plan 02-03 / 02-04b.)
+- [ ] How should the file uploader (P2 factsheet, P3 lecture) skin? Drop-zone vs button-style? (Plan 02-03 / 02-04.)
 - [ ] Token swap to a dark Paper palette for Phase 3 P7 Settings → out of Phase 2 scope.
+- [ ] Cards/Quizz variant 3 (P5 review with rationale) — the rationale block needs to be restored in Figma before plan 02-05 (P4 take-mock card geometry) so plan 02-05 can lock against the final spec. Tracked as OQ-1 in `02-FIGMA-RESEARCH.md` per commit `f6da2d0`.
