@@ -331,3 +331,33 @@ def render_cleaned_factsheet_markdown(data: FactsheetJSON) -> str:
 
     return "\n".join(lines)
 ```
+
+## Code walkthrough
+
+This script turns the cleaned-factsheet JSON (whatever `factsheet_cleaner.py` produced) into student-facing markdown that Streamlit (or Obsidian) can display directly. It's pure Python — no Claude call. Every section is auto-hidden when its source data is empty so the output is never padded with "Not specified" lines for things the source factsheet didn't include. Here's what each piece does, top to bottom.
+
+**Module docstring + `FactsheetJSON` type alias** — The docstring spells out the contract: pure Python, empty subsections auto-hide, and `surf_extraction_notes` is intentionally NOT rendered (that field is internal-only and consumed by the future SLO extractor, not shown to the student). `FactsheetJSON` is a `dict[str, Any]` alias used as a self-documenting type hint everywhere — readers of the function signatures know "this dict is the cleaner's output" without re-reading the cleaner's schema.
+
+**`_value(value, fallback="Not specified")`** — In plain language: a safe-display helper. Returns the fallback string when the value is `None` or an empty string; otherwise returns the value as a stripped string. Used everywhere a single field is rendered — keeps the calling code from littering itself with `or "Not specified"` patterns.
+
+**`_bullets(items)`** — In plain language: turns a list of strings into a markdown bullet list. Each item is run through `_value` first so a None entry in the list still renders as "Not specified" rather than the literal text "None".
+
+**`_assessment_bullets(components)`** — In plain language: special renderer for the assessment-components list because each component has more shape than a simple string (it's a dict with name, weight, format, timing, individual/group, notes). For each component, builds a bold headline like `**Final exam (60%)**`, then nests bullet lines for the four detail fields — but ONLY when those fields are non-empty. So a component with just a name and a weight renders as one bold line with no nested bullets, while a fully-populated component renders all four detail lines. Watch out for: this is the only case in the renderer where empty fields silently disappear instead of showing "Not specified" — the rationale is that nested-bullet noise reads worse than a clean headline.
+
+**`_maybe_subsection(heading, items)`** — In plain language: returns the four lines `[heading, '', bullets, '']` only when `items` is non-empty; returns `[]` otherwise. The empty-list case is the auto-hide behaviour: if the cleaner returned no Skills entries, the entire `### Skills Students Are Expected to Develop` heading disappears rather than rendering an empty bullet list. Used by every list-style subsection.
+
+**`render_cleaned_factsheet_markdown(data)`** — The single public function. In plain language, it walks the cleaned factsheet dict and builds the output in one continuous list of strings (`lines`), joined at the end with newlines. The order of sections is fixed and intentional — a teammate reading any class's factsheet sees the same shape every time:
+
+1. **YAML frontmatter block** — Obsidian-style metadata (title, tags, status, course code, ECTS). The `surf/factsheet` and `surf/cleaned` tags let Obsidian filter to "all cleaned factsheets" easily.
+2. **`# Title`** — the course name as the H1.
+3. **Course Snapshot** — the meta block: course code, semester, ECTS, language, lecturer(s), format. Always rendered (snapshot fields fall back to "Not specified" individually rather than auto-hiding).
+4. **Course Narrative** — the prose summary. Auto-hidden when `narrative_summary` is empty (rare).
+5. **Learning Objectives** — the FSLO list. Auto-hidden when empty.
+6. **Core Course Content** — three subsections (Main Topics, Important Concepts, Skills). The whole "Core Course Content" header itself is auto-hidden when ALL three subsections are empty — accomplished by building the subsections into a separate `core_subs` list first and only appending the header when `core_subs` is non-empty.
+7. **Assessment and Grading** — same auto-hide pattern as Core Course Content. The assessment-components subsection uses the special `_assessment_bullets` renderer; the exam-relevant-content subsection uses standard `_maybe_subsection`.
+8. **Prerequisites and Assumed Knowledge** — list, auto-hidden when empty.
+9. **Source Gaps** — list of "the source factsheet didn't tell us about X" notes from the cleaner. Auto-hidden when empty (the common case for high-quality source factsheets).
+
+**`return "\n".join(lines)`** — In plain language: glues all the accumulated strings (with their inter-line `""` blank lines) into one big markdown document and returns it. The caller (P2 Add Class flow) writes the result into a Streamlit `st.markdown(...)` block for the user to review before saving the class.
+
+Watch out for: the renderer never raises — every dict access uses `.get(...)` with a sensible default. A malformed or partially-empty cleaner output renders as best it can. The trade-off is that you can't tell from the output whether a section is missing because the cleaner didn't find it or because the factsheet is genuinely thin on that topic — that's the cleaner's job to flag in `source_gaps`.

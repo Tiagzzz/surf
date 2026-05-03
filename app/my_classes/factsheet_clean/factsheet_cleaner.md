@@ -148,3 +148,11 @@ def clean_factsheet(raw_md: str) -> dict[str, Any]:
         expect_json=True,
     )
 ```
+
+## Code walkthrough
+
+This script is the same shape as the LO-extractor and MCQ-generator: a thin Python wrapper around one Claude call. It sends the raw factsheet markdown (whatever `pdf_to_md_v3` produced from the user's uploaded PDF) to Claude with the cleaner system prompt, and returns Claude's structured JSON. The cleaning intelligence (which fields to extract, how to normalise prerequisite lists, how to flag source gaps) lives in the system prompt — the Python is roughly 10 lines because that's the whole job.
+
+**Module-level imports + `_SYSTEM_PROMPT_PATH`** — The path to the sibling `factsheet_cleaner_system_prompt.md` is resolved at module load via `Path(__file__).with_name(...)`. Re-read on every call (not cached) so editing the prompt and re-running takes effect immediately, no Python restart. The leading underscore says "internal — don't import this from outside".
+
+**`clean_factsheet(raw_md)`** — In plain language: takes the raw markdown of a factsheet PDF, reads the cleaner system prompt off disk, asks `call_claude` to ship the prompt + the markdown to Claude and return parsed JSON. The function returns Claude's response dict unchanged — schema validation happens at the database boundary (`queries_classes.insert_class` JSON-encodes whatever shape it gets), not here. Watch out for: this function is the LIVE Claude path during P2 (Add Class). If the network is down or the API key is invalid, it raises — Plan 02-03 (Add Class flow) is the layer that catches those errors and surfaces a "couldn't reach Claude, please retry" message to the user.

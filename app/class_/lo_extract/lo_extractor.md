@@ -43,3 +43,11 @@ Step 3 in the lecture-ingest pipeline: **PDF → MD → split → extract_los �
 - **Pass the 7-key subset, not the whole factsheet.** Claude still works on the full thing but burns ~40% extra input tokens. The orchestrator (Plan 05) is responsible for trimming.
 - **No markers → empty arrays.** If `lecture_md` has no `--- PAGE N ---` markers, Claude returns `{"learning_objectives": [], "ignored_pages": [], "language": "..."}` rather than guessing page numbers from the prose.
 - **Failure handling is owned by the orchestrator.** Per D-4.7: if `extract_los` raises (network error, invalid JSON after retry), the lecture row gets `status='pending'` and MCQ generation is skipped for that lecture — the user retries from the UI.
+
+## Code walkthrough
+
+This script is a thin Python wrapper around one Claude call. It packages the lecture markdown plus a small slice of the factsheet, ships them to Claude with the LO-extractor system prompt, and returns Claude's JSON response. The actual extraction intelligence lives in the system prompt, not in Python — the function is roughly 10 lines because that's the whole job.
+
+**Module-level `_SYSTEM_PROMPT_PATH`** — Resolves to the sibling `lo_extractor_system_prompt.md` file at module load. The leading underscore says "internal — don't import this elsewhere". The path is built via `Path(__file__).with_name(...)` so it works regardless of where the script is invoked from. Watch out for: the system prompt is re-read from disk on every call (not cached). That's a deliberate choice — it means editing the prompt and re-running takes effect immediately, no Python restart.
+
+**`extract_los(lecture_md, factsheet_subset)`** — In plain language: bundles the lecture markdown and the 7-key factsheet subset into one JSON string (the `user_message`), reads the system prompt from the sibling .md file, and asks `call_claude` to return JSON. Claude does the actual work: read the markdown, find topical groupings, decide which slides are content vs structural (title pages, sources, etc.), and emit `{learning_objectives, ignored_pages, language}`. The function then returns that dict unchanged. Watch out for: the function does NOT retry on failure — that's the orchestrator's job (D-4.4 says 2 attempts, no backoff). If the network fails or Claude returns invalid JSON, this function raises and the orchestrator catches it.

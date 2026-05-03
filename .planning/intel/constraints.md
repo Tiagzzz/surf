@@ -183,25 +183,22 @@
 - **Tradeoff:** these rules bias toward caution over speed. For trivial tasks, agents may use judgment.
 - **Verification signal:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, clarifying questions before implementation rather than after mistakes.
 
-## C-22 — Code documentation clarity (process contract — LOCKED)
+## C-22 — Code documentation clarity (process contract — LOCKED, amended 2026-05-03)
 
 - **Source:** Tiago directive 2026-05-01 — "all code well documented and clearly understandable; simpler than current 4 sidecar .md docs in the repo"
+- **Amendment:** 2026-05-03 (during Plan 02-01 Task 9 execution) — Tiago's verbatim ruling: **"remove the line cap. Sidecars should explain the code."** The earlier "≤100 lines" / "≤140 flex" caps are SUPERSEDED. New rule: no line cap; clarity is the only criterion; every sidecar must include a `## Code walkthrough` section.
 - **Type:** protocol (process)
 - **Status:** `locked: true` — applies to every script Claude writes for Surf.
-- **Audience target:** a non-CS reader (a teammate, a grader, future-Tiago) should understand WHAT the script does and WHY in under a minute, before touching any code.
-- **Content (every new Python module Claude writes ships with):**
+- **Audience target:** a non-CS reader — specifically Juliette and Cons (Surf's video-track teammates) and the grading rubric — should understand WHAT the script does and WHY in under a minute, before touching any code.
+- **Content (every Python module Claude writes ships with):**
   1. **A short module docstring** at the top — 2–4 sentences in plain language. Lead with WHAT (one sentence) and WHY (one sentence). No jargon a non-engineer wouldn't know without explanation.
-  2. **A short sibling `.md` doc** (e.g. `<script>.md` next to `<script>.py`), kept deliberately shorter and simpler than the existing four sidecars (`claude_client.md` ~298L, `pdf_to_md_v3.md` ~378L, `factsheet_cleaner.md` ~150L, `factsheet_renderer.md` ~333L). Target ≤ 100 lines. Sections, in this order:
+  2. **A sibling `.md` doc** (e.g. `<script>.md` next to `<script>.py`). **No line cap** — explain the code clearly for a non-CS reader. Typical sections, in this order:
      - **Plain-language summary** — 3–6 sentences. Use one analogy if it helps.
-     - **How to call it** — single fenced code block, ≤ 8 lines.
+     - **How to call it** — single fenced code block, short.
      - **What goes in / what comes out** — bullet list, no nested tables.
      - **Where it fits** — one sentence with relative-path links to the 1–2 most relevant siblings.
      - **Gotchas** — only if real; skip the section otherwise.
+     - **`## Code walkthrough`** (mandatory) — function-by-function plain-language paragraphs; no line refs (they rot), no code dumps (the .py is right there). Format: `**def my_func(args)** — In plain language: takes X, does Y because Z, hands back W. Look out for: <one gotcha if any>.` Audience: Juliette + Cons can describe each function in their own words after one read.
   3. **Function docstrings** (Google style) — but only for public functions. Private helpers get one-line comments where the WHY isn't obvious from the name. Don't pad with `Args:` blocks restating type hints.
-  4. **No frontmatter blocks** in sidecar `.md` files unless explicitly requested. The existing four use Obsidian-style frontmatter; new docs skip it for clarity.
-- **Anti-patterns (what made the existing 4 docs feel dense):**
-  - Multi-section hierarchies (Inputs / Outputs / Dependencies / Schema / Still-to-do / Failure modes / etc.) — collapse into 4–5 sections max.
-  - Schema reproduction — link to the system-prompt `.md` instead of inlining JSON shapes.
-  - Cross-link blockquotes at the top — keep relations to a single "Where it fits" sentence.
-  - Tables for inputs with 1–2 rows — bullets are fine.
-- **Verification signal:** a non-engineer teammate (Juliette, Cons) opens a sidecar `.md` and can describe what the script does in their own words after one read.
+  4. **No frontmatter blocks** in sidecar `.md` files unless explicitly requested.
+- **Verification signal:** a non-engineer teammate opens a sidecar `.md` and can describe what the script does in their own words after one read. Length is whatever it takes to be that clear — no longer, no shorter.

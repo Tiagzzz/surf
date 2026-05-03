@@ -113,7 +113,7 @@ Out of scope (other phases):
 
 - **D-5.3 (Back-fill scope):** All 15 Phase 1 sidecars get walkthrough sections back-filled before Phase 2 main work begins (or as the first wave of Phase 2). The 15: `claude_client.md`, `pdf_to_md_v3.md`, `factsheet_cleaner.md`, `factsheet_renderer.md`, `page_splitter.md`, `lo_extractor.md`, `mcq_generator.md`, `lecture_ingest.md`, `db.connection.md`, `db.schema.md`, `db.queries_classes.md`, `db.queries_lectures.md`, `db.queries_questions.md`, `db.queries_pages.md`, `db.queries_learning_objectives.md` (verify exact list when planning).
 
-- **C-22 flex note:** Adding `## Code walkthrough` sections may push some sidecars over the 100-line cap. The cap is allowed to flex up to ~140 lines when the walkthrough section is present. C-22 audit will be revisited at end of Phase 2.
+- **C-22 flex note (SUPERSEDED 2026-05-03 by Tiago, during Plan 02-01 Task 9 execution):** Earlier wording capped sidecars at ≤100 (with ≤140 flex when a walkthrough was present). **Both caps are removed.** Tiago's ruling: "no line cap; sidecars should explain the code." Length is whatever it takes to be clear for a non-CS reader (Juliette + Cons + the grading rubric). The `## Code walkthrough` section is now MANDATORY rather than optional. See `.planning/intel/constraints.md` C-22 for the current locked rule.
 
 ### Branding & Visual Language (Area 6 — NEW, 2026-05-02 amendment)
 
@@ -434,7 +434,7 @@ These are NOT decided here — the widget-catalog researcher and planner pick:
 - **Sample factsheet PDF + sample lecture PDF** committed to `assets/sample_factsheets/` and `assets/sample_lectures/` so a grader can clone and run the demo. Already noted in Phase 1 deferred (smoke test uses one); Phase 5 polishes for graders.
 
 ### Process / housekeeping
-- **C-22 line-cap audit at end of Phase 2** — walkthrough sections may push some sidecars to ~120–140 lines. Either accept the flex or split walkthrough into a sibling `<script>_walkthrough.md` per script (less preferred — separation of concerns vs single-file simplicity).
+- **C-22 line-cap audit at end of Phase 2 — REMOVED 2026-05-03.** Tiago amended C-22 mid-execution: no line cap; clarity is the only criterion. The audit is no longer needed. (Earlier flex note here, mentioning ~120–140 lines and a possible `<script>_walkthrough.md` split, is superseded by the same amendment.)
 - **`app/brain/topbar/` rename** — currently misnamed (it covers sidebar + top header bits). Rename in cleanup phase.
 - **FigJam end-of-phase visualization** — the spec format is still being defined (per `project_figjam_phase_visualization.md` memory). Phase 2 closeout should include a mock-taking-loop diagram once format is locked.
 
