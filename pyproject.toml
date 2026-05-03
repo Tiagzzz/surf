@@ -41,6 +41,9 @@ select = ["E", "F", "I"]
 # byte-for-byte _theme.py copy (sandbox isolation, D-2.22). Same CSS,
 # same long lines, same ignore.
 "previews/spikes/*/_theme.py" = ["E501"]
+# Same rule for component sandboxes under previews/components/<name>/
+# that ship their own byte-for-byte _theme.py copy (e.g. mcq_card_p4).
+"previews/components/*/_theme.py" = ["E501"]
 # Bench preview.py composes the design system; long st.* call lines (e.g.
 # stat_card with 4 kwargs) read better on one line than mid-call-broken.
 "previews/components/_theme_bench/preview.py" = ["E501"]
