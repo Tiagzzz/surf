@@ -319,3 +319,7 @@ None — no external service configuration required. The plan is entirely local 
 ---
 *Phase: 02-mock-taking-loop-p1-p5*
 *Completed: 2026-05-03*
+
+## Post-close-out updates
+
+**2026-05-03 17:31 — Q4 verdict flipped to PASS.** Tiago ran the fragment_timer spike for 57 minutes; RSS shrank −240 KB in the final 3-minute window (104,720 → 104,480 KB). Steady state confirmed, no leak. Plan 02-05 ships `@st.fragment(run_every="1s")` for the P4 mock-take timer. Removes one of the deferred items from the standing list (was: "Q4 RSS-delta observation pending Tiago").

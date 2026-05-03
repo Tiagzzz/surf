@@ -36,8 +36,8 @@ Wave map: W1 (01) ✅ → W2 (02, 03) NEXT → W3 (04a) → W4 (04b, 05) → W5 
 - [ ] 02-05: P4 Take Mock + fragment timer + UPSERT-on-nav + UNIQUE constraint amendment
 - [ ] 02-06: P5 Review Mock + summary banner + grading_formula extraction
 - [ ] 02-07: E2E AppTest P1→P5 + sidecar audit + final visual sweep
-Status: Wave 1 closed. 26 components carry `bench-v1` status in `ui/documentation.md § 5.0`; the next wave's preview gates earn the per-component `production-locked` flips (D-2.25a). Constraints inherited by Wave 2: Plan 02-04 ships visible-button per lecture card (no overlay re-litigation, Q3 FAIL); Plan 02-05 must restore OQ-1 Cards/Quizz variant 3 rationale block in Figma + observe Q4 RSS delta before fragment-timer choice.
-Last activity: 2026-05-03 -- Plan 02-01 complete (commits a822de3 → 3936ba5 + plan-metadata commit pending)
+Status: Wave 1 closed. 26 components carry `bench-v1` status in `ui/documentation.md § 5.0`; the next wave's preview gates earn the per-component `production-locked` flips (D-2.25a). Constraints inherited by Wave 2: Plan 02-04 ships visible-button per lecture card (no overlay re-litigation, Q3 FAIL); Plan 02-05 ships `@st.fragment(run_every="1s")` for the P4 mock-take timer (Q4 PASS confirmed 2026-05-03 17:31, 57m05s observation, RSS shrank −240 KB) and must restore OQ-1 Cards/Quizz variant 3 rationale block in Figma before starting.
+Last activity: 2026-05-03 -- Q4 verdict flipped to PASS (post-close-out addendum on top of plan 02-01)
 
 Phase 1 progress: [██████████] 100%
 Phase 2 progress: [█░░░░░░░░░] 13% (1/8 plans)
@@ -84,7 +84,7 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 - ~~[Phase 2 Streamlit widget catalog research](todos/pending/2026-05-02-phase-2-streamlit-widget-catalog-research.md)~~ — **CLOSED 2026-05-02 by Plan 02-01 Task 3.** Folded into `02-WIDGETS.md` token table + component spec; the parallel-session bench at `previews/components/_theme_bench/preview.py` is the runnable equivalent. Todo file moved to `.planning/todos/done/`.
-- **Q4 RSS-delta observation** (Tiago) — go/no-go gate for Plan 02-05's fragment-timer choice. Sandbox at `previews/spikes/fragment_timer/preview.py`; protocol in `previews/spikes/SPIKES.md § Q4`. Not blocking Wave-2 start.
+- ~~**Q4 RSS-delta observation** (Tiago)~~ — **CLOSED 2026-05-03 17:31, verdict PASS.** 57-min observation; RSS shrank −240 KB in the final 3-min window (104,720 → 104,480 KB); steady state, no leak. Plan 02-05 ships `@st.fragment(run_every="1s")` for the P4 mock-take timer. See `previews/spikes/SPIKES.md § Q4` for the verdict block.
 - **OQ-1 Cards/Quizz variant 3 rationale block** (Tiago) — must be restored in Figma before plan 02-05 starts. Tracked in `02-FIGMA-RESEARCH.md` per side-channel commit `f6da2d0`.
 
 ### Blockers/Concerns
@@ -100,7 +100,7 @@ Recent decisions affecting current work:
 |----------|------|--------|-------------|
 | Process | **Sidecar code-walkthrough sections.** ~~15 files Phase-1 + 2 Phase-2 sidecars need plain-language walkthroughs.~~ | **CLOSED 2026-05-03 by Plan 02-01 Task 9** | 2026-05-01 |
 | Plan-02-05 prereq | **OQ-1 Cards/Quizz variant 3 rationale block** must be restored in Figma before plan 02-05 (P4 Take Mock) starts. | OPEN | 2026-05-03 (per `02-FIGMA-RESEARCH.md`, side-channel `f6da2d0`) |
-| Plan-02-05 prereq | **Q4 RSS-delta observation** (5-min memory test of `@st.fragment(run_every="1s")`) — go/no-go gate for fragment-timer choice. | OPEN | 2026-05-03 |
+| Plan-02-05 prereq | **Q4 RSS-delta observation** (5-min memory test of `@st.fragment(run_every="1s")`) — go/no-go gate for fragment-timer choice. | **CLOSED 2026-05-03 17:31 — PASS.** 57-min observation; RSS shrank −240 KB in final 3-min window. Plan 02-05 locks `@st.fragment(run_every="1s")`. | 2026-05-03 |
 | Plan-02-05 spec | **MCQ-card full geometry** (5 difficulty stars + rationale block + 3 action buttons + restored padding decision) — D-2.23 keeps the 22/20/20/20 padding as a Figma-locked exception until 02-05 owns the whole card. | OPEN | 2026-05-02 |
 | Cleanup | **`app/brain/topbar/` rename** — directory misnamed (covers sidebar + top header). | OPEN | 2026-05-02 |
 

@@ -9,32 +9,67 @@ direction.
 | Spike | RESEARCH ref | Owner plan | Status | Sandbox |
 |---|---|---|---|---|
 | Q3 — Card Interactive overlay | §11 Q3 | 02-04 (P3 lecture multi-select) | **FAIL** (live test 2026-05-03 — Tiago confirmed clicking the card body does NOT toggle. Fallback chosen.) | `previews/spikes/card_interactive_overlay/preview.py` |
-| Q4 — Fragment timer 5-min memory | §11 Q4 | 02-05 (P4 mock timer) | **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION** (Tiago confirmed clean boot + tick; 5-minute RSS observation still pending — not a hard FAIL) | `previews/spikes/fragment_timer/preview.py` |
+| Q4 — Fragment timer 5-min memory | §11 Q4 | 02-05 (P4 mock timer) | **PASS** (live observation 2026-05-03 17:31, 57m05s elapsed — RSS shrank −240 KB in the final 3m20s window; steady state, no leak) | `previews/spikes/fragment_timer/preview.py` |
 | Q8 — `@st.cache_resource` on `connection.py` | §11 Q8 | 02-04, 02-05, 02-06 (every page that opens DB) | **FIXED** (Plan 02-01 Task 8, commit `4de9243`) | (production change to `app/db/connection.py` + `tests/test_db_connection_cache_resource.py`) |
 
 ---
 
 ## Q4 verdict — fragment timer 5-min memory test
 
-**Status:** **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION.** Tiago
-confirmed (2026-05-03) that the sandbox boots cleanly, the timer
-ticks every second, the unrelated checkbox does not reset the timer,
-and the outer-rerun counter behaves as expected. The remaining gate
-is the 5-minute RSS measurement — confirming `< 10 MB` growth across
-five minutes of continuous ticking. Until that observation lands,
-this is **not** a hard FAIL but it is **not** a PASS either. Plan
-02-05 (P4 mock timer) can begin design work assuming the fragment
-pattern is on track; the hard go/no-go flips once Tiago records the
-RSS delta in the verdict block below.
+**Status:** **PASS** (live observation 2026-05-03, 57m05s window).
+Tiago let the sandbox run for 57 minutes and observed steady-state
+memory: RSS actually **shrank** −240 KB in the final 3m20s window
+(104,720 KB → 104,480 KB). No leak. The 5-min PASS bar from the
+original protocol (`< 10 MB` growth across 5 minutes) is comfortably
+exceeded — the spike ran more than 11× longer and lost memory
+instead of gaining it.
 
-### What the sandbox does
+### Verdict block (filled by Tiago)
+
+```
+Tester:         Tiago Reimann
+Started:        2026-05-03 16:34
+Verdict at:     2026-05-03 17:31  (57m05s elapsed)
+Fragment ticks: ~3,420 (1 Hz × 57 min)
+
+RSS at baseline (53m45s):  104,720 KB
+RSS at verdict   (57m05s): 104,480 KB
+Delta over 3m20s window:   −240 KB  (steady state, RSS shrinking)
+
+Timer-state isolation: PASS (checkbox toggles never reset the timer)
+Outer-rerun isolation: PASS (outer-rerun counter only ticked on user
+                              interactions, not on the 1 Hz fragment
+                              clock)
+
+Q4 verdict: PASS
+```
+
+### Chosen approach for Plan 02-05
+
+Plan 02-05 (P4 Take Mock) ships **`@st.fragment(run_every="1s")`** for
+the elapsed-time timer in the topbar. The sandbox path
+(`previews/spikes/fragment_timer/preview.py`) becomes the canonical
+reference for the pattern. **No fallback to manual re-render-on-nav**
+— the verdict is hard PASS, not conditional. Plan 02-05 inherits this
+choice as a hard architectural constraint (no fragment-vs-manual
+re-litigation).
+
+### Reference — pre-verdict spec (kept for context)
+
+The text below describes the original 5-minute-test protocol BEFORE
+Tiago's 2026-05-03 17:31 live observation resolved Q4 as PASS. Kept
+here so a reader can trace what was tested and how the PASS verdict
+was reached. The "PASS / FAIL conditional approach" branches no
+longer apply; the PASS branch was selected.
+
+#### What the sandbox does
 
 `previews/spikes/fragment_timer/preview.py` renders a `@st.fragment(run_every="1s")`
 that paints an "ELAPSED MM:SS" counter inside a passive card. Outside
 the fragment, a Reset button + an unrelated checkbox + an outer-script
 rerun counter sit as the state-isolation test.
 
-The fragment-isolation contract being verified:
+The fragment-isolation contract that was being verified:
 
 1. **Single-body re-execution:** the fragment body re-runs on the 1 Hz
    tick; the outer script does NOT re-run (the outer-rerun counter
@@ -46,54 +81,27 @@ The fragment-isolation contract being verified:
    normal outer rerun; the timer must keep ticking from wherever it
    was, NOT reset to 0.
 4. **No memory leak:** RSS growth across 5 minutes < 10 MB on the
-   `streamlit` Python process.
+   `streamlit` Python process. (Live result: passed by an order of
+   magnitude — 57 min → −240 KB.)
 
-### Run command
+#### Run command (sandbox is still runnable for reference)
 
 ```
 streamlit run previews/spikes/fragment_timer/preview.py
 ```
 
-### Measurement protocol (Tiago to execute)
+#### Original measurement protocol
 
 1. Open Activity Monitor (Cmd-Space → "Activity Monitor"). Switch to
    the **Memory** tab. Find the `streamlit` Python process (the row
    whose Command column references the spike's preview.py).
-2. Note the **Memory** value (RSS) and the wall-clock time. Round
-   to the nearest MB.
-3. Wait 5 minutes by the clock. Watch the timer in the browser tick
-   from 00:00 toward 05:00.
+2. Note the **Memory** value (RSS) and the wall-clock time.
+3. Wait 5 minutes by the clock. Watch the timer tick from 00:00.
 4. During the 5 minutes, toggle the unrelated checkbox at least 3
    times. The timer card MUST keep counting up; it must NOT reset.
 5. After 5 minutes, re-read the RSS in Activity Monitor.
-6. **PASS criteria:**
-   - RSS growth < 10 MB across the 5 minutes.
-   - Timer never reset on checkbox toggle (state isolation held).
-   - Outer-rerun counter incremented only on Reset / checkbox click,
-     not on each fragment tick (fragment isolation held).
-
-### Verdict — to be filled by Tiago
-
-```
-RSS at t=0:    ___ MB
-RSS at t=5min: ___ MB
-Delta:         ___ MB
-Timer-state isolation: PASS / FAIL
-Outer-rerun isolation: PASS / FAIL
-
-Q4 verdict: PASS / FAIL
-```
-
-### Chosen approach (conditional on verdict)
-
-- **PASS:** Plan 02-05 (P4 Take Mock) ships the
-  `@st.fragment(run_every="1s")` pattern for the elapsed-time timer in
-  the topbar. Sandbox path becomes the canonical reference.
-- **FAIL:** Fall back to a manual re-render-on-nav timer — elapsed
-  recomputed only on Next/Prev/Skip/Submit click. The trade-off is
-  that the user sees a stale "elapsed: 12:34" between clicks instead
-  of a live tick; functionality is unaffected (mock duration is
-  recorded from `started_at` to `finished_at` server-side regardless).
+6. PASS criteria: RSS growth < 10 MB; timer-state and outer-rerun
+   isolation both PASS.
 
 ---
 

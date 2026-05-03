@@ -277,25 +277,24 @@ button re-litigation.
 
 ### Q4 — Fragment timer 5-min memory test
 
-**Status:** **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION** (Tiago
-confirmed clean boot + 1 Hz tick + state isolation 2026-05-03; the
-5-minute RSS observation is still pending). Not a hard FAIL — Plan
-02-05 design work can proceed assuming fragment is on track; the
-hard go/no-go flips once Tiago records the RSS delta in
-`previews/spikes/SPIKES.md § Q4`.
+**Status:** **PASS** (live observation 2026-05-03 17:31, 57m05s
+window). Tiago let the sandbox run for 57 minutes; RSS shrank −240 KB
+in the final 3m20s window (104,720 KB → 104,480 KB). Steady state, no
+leak — comfortably exceeds the original 5-min `< 10 MB growth` PASS
+bar.
 
 **Run command:** `streamlit run previews/spikes/fragment_timer/preview.py`
 
-**Q4 verdict:** WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION — to
-be flipped to PASS or FAIL in `previews/spikes/SPIKES.md` once Tiago
-finishes the 5-minute observation.
+**Q4 verdict:** **PASS** — full verdict block in
+`previews/spikes/SPIKES.md § Q4` (tester, timestamps, RSS deltas,
+isolation results).
 
-**Chosen approach (conditional on the memory observation):**
-- PASS → Plan 02-05 (P4 Take Mock) ships `@st.fragment(run_every="1s")`
-  for the elapsed-time timer in the topbar.
-- FAIL → fallback is a manual re-render-on-nav timer (recompute elapsed
-  only on Next / Prev / Skip / Submit click; mock duration still
-  recorded server-side via `attempts.started_at` → `finished_at`).
+**Chosen approach for Plan 02-05 (locked, no fallback):** Plan 02-05
+(P4 Take Mock) ships `@st.fragment(run_every="1s")` for the elapsed-
+time timer in the topbar. The sandbox path is the canonical reference.
+NO fallback to manual re-render-on-nav — the verdict is hard PASS,
+not conditional. Plan 02-05 inherits this as a hard architectural
+constraint (no fragment-vs-manual re-litigation).
 
 ### Q8 — `@st.cache_resource` on `app/db/connection.py`
 
