@@ -256,12 +256,24 @@ helper), correct/total + percent-to-next-note line.
 
 ### Q3 — Card Interactive overlay-button
 
-**Status:** Pending — spike runs as Task 7 of plan 02-01, after the
-theme bench is approved.
+**Status:** **PENDING-RUN.** Sandbox built at
+`previews/spikes/card_interactive_overlay/preview.py` (Plan 02-01
+Task 7); awaits a live click test (the executor agent cannot click
+through Streamlit's React-rendered DOM from inside a Bash session).
 
-> Verdict + chosen approach will be filled in by Task 7. Until then,
-> Plan 04 (P3 lecture multi-select) MUST treat the overlay pattern as
-> unconfirmed.
+**Run command:** `streamlit run previews/spikes/card_interactive_overlay/preview.py`
+
+**Q3 verdict:** PENDING-RUN — to be filled in `previews/spikes/SPIKES.md § Q3`
+once Tiago confirms that clicking anywhere on a card body toggles
+selection and the live counter updates.
+
+**Chosen approach (conditional):**
+- PASS → Plan 02-04 (P3 lecture multi-select) ships the overlay-button
+  pattern; the spike's `_SPIKE_CSS` block lifts into `theme.py` under
+  a new `LECTURE CARD` section.
+- FAIL → fallback is a visible "Select / Selected ✓" button per card.
+  The state-baked key suffix logic stays the same; only the visible
+  affordance changes.
 
 ### Q4 — Fragment timer 5-min memory test
 

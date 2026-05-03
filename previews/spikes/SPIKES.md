@@ -92,7 +92,66 @@ Q4 verdict: PASS / FAIL
 
 ## Q3 verdict — Card Interactive overlay-button (RESEARCH §11 Q3)
 
-**Status:** TBD. To be filled by Plan 02-01 Task 7.
+**Status:** **PENDING-RUN.** Sandbox built at
+`previews/spikes/card_interactive_overlay/preview.py` (Plan 02-01
+Task 7); awaits a live click test that the executor agent cannot
+perform from inside a Bash session.
+
+### What the sandbox does
+
+Three lecture cards rendered via `st.container(key=f"lecture-{i}")`.
+Each card has a `type="tertiary"` `st.button` absolutely positioned
+to cover its full bounds (`inset: 0`, `opacity: 0`, `z-index: 2`).
+The card content sits at `z-index: 1` with `pointer-events: none` so
+the invisible button catches every click on the card body.
+
+Selected state uses a state-baked key suffix (`lecture-{i}-selected`
+when `lecture['id'] in st.session_state["selected"]`) — the plan's
+"OR fallback" path, since `:has()` doesn't easily target a tertiary
+button's pressed state. CSS branches on `[class*="-selected"]` to
+paint accent-wash bg + accent-deep border on the next rerun.
+
+### The Q3 contract being verified
+
+1. Clicking anywhere on the card body fires the overlay tertiary
+   button's `on_click`. The card text is unselectable / unclickable
+   directly because of `pointer-events: none` on the inner block.
+2. Selection toggles correctly across multiple cards. The live
+   counter line ("N lectures × 5 = 5N questions") updates.
+3. Hover lift still works — the stamp shadow grows on hover, the
+   wrapper translates `(-2px, -2px)`. The tertiary button's
+   `data-testid` doesn't bleed into a focus ring.
+4. The Q3 fallback (visible "Select / Selected ✓" button at the
+   bottom of each card) is unnecessary if 1-3 hold.
+
+### Run command
+
+```
+streamlit run previews/spikes/card_interactive_overlay/preview.py
+```
+
+### Verdict — to be filled by Tiago
+
+```
+Card-body click toggles selection: PASS / FAIL
+Multi-select live counter:         PASS / FAIL
+Hover lift survives the overlay:   PASS / FAIL
+
+Q3 verdict: PASS / FAIL
+```
+
+### Chosen approach (conditional on verdict)
+
+- **PASS:** Plan 02-04 (P3 lecture multi-select) ships the overlay-
+  button pattern. The CSS snippet in this spike's `preview.py`
+  (`_SPIKE_CSS` block) lifts into `app/brain/theme/theme.py` under a
+  new `LECTURE CARD` section. Both `previews/_theme.py` and the bench
+  `_theme.py` re-sync.
+- **FAIL:** Plan 02-04 ships the visible "Select / Selected ✓" button
+  per card. Less elegant — the click target is a small button rather
+  than the whole card body — but no `data-testid` reliance. The
+  state-baked key suffix logic stays the same; only the visible button
+  changes.
 
 ---
 
