@@ -8,17 +8,24 @@ direction.
 
 | Spike | RESEARCH ref | Owner plan | Status | Sandbox |
 |---|---|---|---|---|
-| Q3 — Card Interactive overlay | §11 Q3 | 02-04 (P3 lecture multi-select) | TBD | `previews/spikes/card_interactive_overlay/preview.py` |
-| Q4 — Fragment timer 5-min memory | §11 Q4 | 02-05 (P4 mock timer) | **PENDING-RUN** (sandbox built; Tiago to execute) | `previews/spikes/fragment_timer/preview.py` |
-| Q8 — `@st.cache_resource` on `connection.py` | §11 Q8 | 02-04, 02-05, 02-06 (every page that opens DB) | TBD | (production change to `app/db/connection.py` + `tests/test_db_connection_cache_resource.py`) |
+| Q3 — Card Interactive overlay | §11 Q3 | 02-04 (P3 lecture multi-select) | **FAIL** (live test 2026-05-03 — Tiago confirmed clicking the card body does NOT toggle. Fallback chosen.) | `previews/spikes/card_interactive_overlay/preview.py` |
+| Q4 — Fragment timer 5-min memory | §11 Q4 | 02-05 (P4 mock timer) | **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION** (Tiago confirmed clean boot + tick; 5-minute RSS observation still pending — not a hard FAIL) | `previews/spikes/fragment_timer/preview.py` |
+| Q8 — `@st.cache_resource` on `connection.py` | §11 Q8 | 02-04, 02-05, 02-06 (every page that opens DB) | **FIXED** (Plan 02-01 Task 8, commit `4de9243`) | (production change to `app/db/connection.py` + `tests/test_db_connection_cache_resource.py`) |
 
 ---
 
 ## Q4 verdict — fragment timer 5-min memory test
 
-**Status:** **PENDING-RUN.** Sandbox built and runnable; awaits a live
-5-minute RSS measurement that this Bash session cannot perform from
-inside the executor.
+**Status:** **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION.** Tiago
+confirmed (2026-05-03) that the sandbox boots cleanly, the timer
+ticks every second, the unrelated checkbox does not reset the timer,
+and the outer-rerun counter behaves as expected. The remaining gate
+is the 5-minute RSS measurement — confirming `< 10 MB` growth across
+five minutes of continuous ticking. Until that observation lands,
+this is **not** a hard FAIL but it is **not** a PASS either. Plan
+02-05 (P4 mock timer) can begin design work assuming the fragment
+pattern is on track; the hard go/no-go flips once Tiago records the
+RSS delta in the verdict block below.
 
 ### What the sandbox does
 
@@ -92,12 +99,53 @@ Q4 verdict: PASS / FAIL
 
 ## Q3 verdict — Card Interactive overlay-button (RESEARCH §11 Q3)
 
-**Status:** **PENDING-RUN.** Sandbox built at
+**Status:** **FAIL.** Tiago ran the sandbox at
 `previews/spikes/card_interactive_overlay/preview.py` (Plan 02-01
-Task 7); awaits a live click test that the executor agent cannot
-perform from inside a Bash session.
+Task 7) on 2026-05-03 and confirmed: clicking the card body does
+NOT toggle selection. The overlay-tertiary-button technique fails
+in practice. Per the spike's documented decision tree, the chosen
+approach is the visible "Select / Selected ✓" button fallback.
 
-### What the sandbox does
+### Verdict block (filled by Tiago)
+
+```
+Card-body click toggles selection: FAIL
+Multi-select live counter:         FAIL (consequence of the above)
+Hover lift survives the overlay:   not material — fallback doesn't use overlay
+
+Q3 verdict: FAIL
+```
+
+### Chosen approach for Plan 02-04
+
+Plan 02-04 (P3 lecture multi-select) ships the **visible "Select /
+Selected ✓" button per lecture card** — the spike's documented
+fallback. The whole-card click-target idea is dropped. The
+state-baked key suffix logic (`lecture-{i}-selected` when in
+`st.session_state["selected"]`) stays the same; only the visible
+affordance changes:
+
+- Each lecture card carries an in-card `st.button("Select")` (default
+  state) or `st.button("Selected ✓")` (selected state).
+- The CSS for `[class*="st-key-lecture-"][class*="-selected"]` keeps
+  the accent-wash bg + accent-deep border so the visual feedback on
+  rerun still works.
+- The `_SPIKE_CSS` overlay-positioning block does NOT lift into
+  `theme.py`. Plan 02-04 writes a new `LECTURE CARD` section directly,
+  using only the wrapper-and-button visual rules.
+
+This is the constraint Plan 02-04 inherits — no overlay-button
+re-litigation.
+
+### Reference — pre-verdict spec (kept for context)
+
+The text below describes how the spike was structured BEFORE Tiago's
+2026-05-03 live test resolved Q3 as FAIL. Kept here so a reader can
+trace what was tried and why the FAIL verdict was reached. The
+"chosen approach" branches no longer apply; the `FAIL` branch was
+selected.
+
+#### What the sandbox does
 
 Three lecture cards rendered via `st.container(key=f"lecture-{i}")`.
 Each card has a `type="tertiary"` `st.button` absolutely positioned
@@ -111,7 +159,7 @@ when `lecture['id'] in st.session_state["selected"]`) — the plan's
 button's pressed state. CSS branches on `[class*="-selected"]` to
 paint accent-wash bg + accent-deep border on the next rerun.
 
-### The Q3 contract being verified
+#### The Q3 contract that was being verified
 
 1. Clicking anywhere on the card body fires the overlay tertiary
    button's `on_click`. The card text is unselectable / unclickable
@@ -122,36 +170,14 @@ paint accent-wash bg + accent-deep border on the next rerun.
    wrapper translates `(-2px, -2px)`. The tertiary button's
    `data-testid` doesn't bleed into a focus ring.
 4. The Q3 fallback (visible "Select / Selected ✓" button at the
-   bottom of each card) is unnecessary if 1-3 hold.
+   bottom of each card) was unnecessary if 1-3 held. Test result:
+   1 failed → fallback chosen.
 
-### Run command
+#### Run command (sandbox is still runnable for reference)
 
 ```
 streamlit run previews/spikes/card_interactive_overlay/preview.py
 ```
-
-### Verdict — to be filled by Tiago
-
-```
-Card-body click toggles selection: PASS / FAIL
-Multi-select live counter:         PASS / FAIL
-Hover lift survives the overlay:   PASS / FAIL
-
-Q3 verdict: PASS / FAIL
-```
-
-### Chosen approach (conditional on verdict)
-
-- **PASS:** Plan 02-04 (P3 lecture multi-select) ships the overlay-
-  button pattern. The CSS snippet in this spike's `preview.py`
-  (`_SPIKE_CSS` block) lifts into `app/brain/theme/theme.py` under a
-  new `LECTURE CARD` section. Both `previews/_theme.py` and the bench
-  `_theme.py` re-sync.
-- **FAIL:** Plan 02-04 ships the visible "Select / Selected ✓" button
-  per card. Less elegant — the click target is a small button rather
-  than the whole card body — but no `data-testid` reliance. The
-  state-baked key suffix logic stays the same; only the visible button
-  changes.
 
 ---
 

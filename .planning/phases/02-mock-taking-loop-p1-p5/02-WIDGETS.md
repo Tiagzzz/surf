@@ -256,39 +256,41 @@ helper), correct/total + percent-to-next-note line.
 
 ### Q3 — Card Interactive overlay-button
 
-**Status:** **PENDING-RUN.** Sandbox built at
-`previews/spikes/card_interactive_overlay/preview.py` (Plan 02-01
-Task 7); awaits a live click test (the executor agent cannot click
-through Streamlit's React-rendered DOM from inside a Bash session).
+**Status:** **FAIL** (live test 2026-05-03). Tiago ran
+`streamlit run previews/spikes/card_interactive_overlay/preview.py`
+and confirmed: clicking the card body does NOT toggle selection. The
+overlay-tertiary-button technique fails in practice.
 
-**Run command:** `streamlit run previews/spikes/card_interactive_overlay/preview.py`
+**Q3 verdict:** **FAIL** — see `previews/spikes/SPIKES.md § Q3` for
+the filled verdict block.
 
-**Q3 verdict:** PENDING-RUN — to be filled in `previews/spikes/SPIKES.md § Q3`
-once Tiago confirms that clicking anywhere on a card body toggles
-selection and the live counter updates.
-
-**Chosen approach (conditional):**
-- PASS → Plan 02-04 (P3 lecture multi-select) ships the overlay-button
-  pattern; the spike's `_SPIKE_CSS` block lifts into `theme.py` under
-  a new `LECTURE CARD` section.
-- FAIL → fallback is a visible "Select / Selected ✓" button per card.
-  The state-baked key suffix logic stays the same; only the visible
-  affordance changes.
+**Chosen approach for Plan 02-04:** the visible "Select / Selected ✓"
+button fallback. Each lecture card carries an in-card
+`st.button("Select")` (default state) or `st.button("Selected ✓")`
+(selected state); the state-baked key suffix
+(`lecture-{i}-selected`) still drives the accent-wash bg +
+accent-deep border on rerun. The spike's `_SPIKE_CSS` overlay-
+positioning block does NOT lift into `theme.py`; Plan 02-04 writes
+a new `LECTURE CARD` section directly with only wrapper-and-button
+visual rules. Plan 02-04 inherits this constraint — no overlay-
+button re-litigation.
 
 ### Q4 — Fragment timer 5-min memory test
 
-**Status:** **PENDING-RUN.** Sandbox built at
-`previews/spikes/fragment_timer/preview.py` (Plan 02-01 Task 6); awaits
-a live 5-minute RSS measurement that the executor agent cannot perform.
-Tiago runs the test per the protocol in `previews/spikes/SPIKES.md § Q4`
-and records the verdict there.
+**Status:** **WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION** (Tiago
+confirmed clean boot + 1 Hz tick + state isolation 2026-05-03; the
+5-minute RSS observation is still pending). Not a hard FAIL — Plan
+02-05 design work can proceed assuming fragment is on track; the
+hard go/no-go flips once Tiago records the RSS delta in
+`previews/spikes/SPIKES.md § Q4`.
 
 **Run command:** `streamlit run previews/spikes/fragment_timer/preview.py`
 
-**Q4 verdict:** PENDING-RUN — to be filled in `previews/spikes/SPIKES.md`
-once Tiago executes the 5-minute test.
+**Q4 verdict:** WORKS-MECHANICALLY-PENDING-MEMORY-OBSERVATION — to
+be flipped to PASS or FAIL in `previews/spikes/SPIKES.md` once Tiago
+finishes the 5-minute observation.
 
-**Chosen approach (conditional):**
+**Chosen approach (conditional on the memory observation):**
 - PASS → Plan 02-05 (P4 Take Mock) ships `@st.fragment(run_every="1s")`
   for the elapsed-time timer in the topbar.
 - FAIL → fallback is a manual re-render-on-nav timer (recompute elapsed

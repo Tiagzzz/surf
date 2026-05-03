@@ -20,6 +20,17 @@ Surf uses a **paper-and-stamp** aesthetic: warm cream backgrounds, charcoal text
 - No JS injection (no confetti, no scroll-triggered animations, no animated counters).
 - All component-level styling reaches Streamlit widgets via stable selectors: `[class*="st-key-XXX"]` for `st.container(key="XXX")` wrappers + `data-testid` for nested widgets.
 
+### 1.1 Component validation levels
+
+Every component in this catalog carries a **Status** (see § 5 column). Bench approval is NOT production approval — only seeing a component composed inside a real page (with its real siblings, real data, real responsiveness) earns the production-locked flip. The four valid statuses:
+
+- **`bench-v1`** — CSS exists in `theme.py` AND the component was visually approved at bench-level isolation (the theme bench at `previews/components/_theme_bench/preview.py`). **NOT yet seen in real page context.** Subject to refinement when composed in production.
+- **`production-locked`** — validated inside a specific plan's preview gate where the component appears in its real composition (e.g. topbar inside the P3 class hub layout, MCQ card with stars + rationale + 3 buttons inside P4 take-mock). Earned, not assumed.
+- **`draft`** — CSS exists but never bench-validated. (No Phase-2 components currently sit at `draft`.)
+- **`deferred`** — spec'd or surfaced in research but not yet built in `theme.py`.
+
+**The validation flow:** every downstream plan that ships a visual element runs its OWN preview gate. If a `bench-v1` component renders correctly in that plan's real-page sandbox, the plan's executor flips its row in § 5 to `production-locked` (with the plan ID + commit SHA in the "Earned where" column). Bench approval alone never earns the flip. The catalog is self-correcting: readers can always see what's still subject to refinement vs frozen.
+
 ---
 
 ## 2. Token reference
@@ -124,30 +135,75 @@ Transitions only — **no `@keyframes`.** The hover stamp-shadow IS the signatur
 
 Every component shipping in `app/brain/theme/theme.py` `_CSS` plus the Python helpers in the same module. Use the section headings to ⌘-F your way around. The reference screenshots live under `docs/design/figma_exports/` (currently `node_25-2.png` for the components page and `node_4045-282_mcq_take_mock.png` for the Take-Mock card).
 
+### 5.0 Status index
+
+Every component carries a **Status** flag (definitions in § 1.1 "Component validation levels"). Bench approval is NOT production approval — only a downstream plan's preview gate, where the component appears in real composition, can earn a `production-locked` flip. Until then, every component validated at the bench (Task 5 → re-presentations 1–3 → final approval at commit `1c0148b`) is `bench-v1`.
+
+| Component | Status | Earned where / next gate |
+|---|---|---|
+| `btn-default` | `bench-v1` | bench `1c0148b`; production-lock when first plan ships a primary CTA in real context |
+| `btn-ghost` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `btn-soft` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `btn-tinted-accent` | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-04's "Generate Mock" CTA |
+| `btn-tinted-{ok,info,warn}` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `card-passive` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `card-interactive` | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-04 lecture multi-select (now using the visible-button fallback per Q3 FAIL — see SPIKES.md § Q3) |
+| `class-card` | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-03 P2 My Classes |
+| `stat-card` | `bench-v1` | bench `1c0148b`; first real-context appearance is P6 dashboard (Phase 3) |
+| `mcq-opt-{q}-{letter}` (Off / On via `:has(input:checked)`) | `bench-v1` | bench `1c0148b`; production-lock at plan 02-05 P4 Take Mock |
+| `mcq-opt-{key}-correct` / `-incorrect` | `bench-v1` | bench `1c0148b`; production-lock at plan 02-06 P5 Mock Review |
+| `mcq-card` | `bench-v1` | bench `1c0148b`; production-lock at plan 02-05 P4 Take Mock (full geometry decision deferred there per D-2.23 exception) |
+| `difficulty-stars` (`difficulty_stars()` helper) | `bench-v1` | bench `1c0148b`; production-lock at plan 02-05 P4 Take Mock (5-slot ML-driven version) |
+| `surf-chip` (`chip()` helper) | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `surf-steps` (`steps()` helper) | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-02 P1 Sign Up wizard |
+| `surf-score` (`score()` helper) | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-03 class card or plan 02-06 P5 summary banner |
+| `surf-stat-value` / `surf-delta-{up,down,flat}` (`stat_card()` helper) | `bench-v1` | bench `1c0148b`; production-lock at P6 dashboard (Phase 3) |
+| `topbar` | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-03 (every authenticated page) |
+| `topbar-icon-{home,settings}` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `empty` (`empty_state_text()` helper) | `bench-v1` | bench `1c0148b`; first real-context appearance is plan 02-03 P2 (no classes yet) |
+| `stStatus` / `stStatusWidget` skin | `bench-v1` | bench `1c0148b`; production-lock at plan 02-04 P3 ingestion |
+| `stExpander` skin | `bench-v1` | bench `1c0148b`; production-lock at plan 02-06 P5 difficulty breakdown |
+| `serif-h2` / `heading_h2()` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `surf-eyebrow` / `eyebrow()` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `surf-caption` / `caption()` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `surf-meta` / `meta()` | `bench-v1` | bench `1c0148b`; production-lock per-plan |
+| `summary-banner` (P5 final score) | `deferred` | spec'd in 02-WIDGETS.md § Summary banner; built in plan 02-06 |
+| `sidebar-list` (P3 Past Attempts) | `deferred` | spec'd in 02-FIGMA-RESEARCH; built in plan 02-04 |
+| `file-uploader-skin` (P2 / P3) | `deferred` | drop-zone vs button-style decision in plans 02-03 / 02-04 |
+
+**26 components at `bench-v1`, 3 `deferred`, 0 `production-locked`.** This is honest — Task 5 was a bench gate, not a real-context gate. The first `production-locked` flips will land when plans 02-02 → 02-07 ship their preview gates.
+
+---
+
 ### Buttons
 
 #### btn-default
+**Status:** `bench-v1` (bench `1c0148b`).
 **`st.container(key="btn-default")` wrapper** — primary CTA, dark-ink fill (`--paper-5`), white text, JetBrains Mono Bold caps-tracked label, 3 px stamp shadow.
 Use when: there's exactly ONE primary action on the page (Save Class, Take Mock, Submit Answer).
 Don't use when: the action is destructive (use `btn-tinted-warn`) or secondary (use `btn-soft`).
 Recipe: `with st.container(key="btn-default"): st.button("Take mock")`.
 
 #### btn-ghost
+**Status:** `bench-v1` (bench `1c0148b`).
 **`st.container(key="btn-ghost")` wrapper** — outlined-only, no fill, no stamp shadow. 1.5 px paper-4 border that darkens to paper-5 on hover.
 Use when: the button is paired with a `btn-default` and needs to look secondary (Cancel, Skip). Or when the action is non-committal (Preview, Reset).
 Don't use when: it's the ONLY button on the page — `btn-soft` reads better as a sole CTA.
 
 #### btn-soft
+**Status:** `bench-v1` (bench `1c0148b`).
 **`st.container(key="btn-soft")` wrapper** — paper-1 fill, paper-5 text, 2 px stamp-soft shadow. Quietest of the four families.
 Use when: tertiary actions (Save Draft, Show Raw JSON, Open Settings).
 Don't use when: there's already a `btn-ghost` doing the secondary job — pick one and stick with it.
 
 #### btn-tinted-accent
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: plan 02-04 "Generate Mock" CTA.
 **`st.container(key="btn-tinted-accent")` wrapper** — Surf-red fill (`--accent-vibrant`), white text. The "this commits to something" button.
 Use when: the action triggers a Claude call, writes to DB, or otherwise commits real work (Generate Mock, Submit Answer, Save Class).
 Don't use when: the action is reversible by a single click (use `btn-default` instead).
 
 #### btn-tinted-ok / btn-tinted-info / btn-tinted-warn
+**Status:** `bench-v1` (bench `1c0148b`).
 **`st.container(key="btn-tinted-{ok,info,warn}")` wrapper** — Status-colored fills (green, blue, amber). White text. 3 px stamp shadow + `filter: brightness(0.9)` on hover.
 Use when: the button conveys a status meaning (OK = confirm/proceed, Info = view details, Warn = irreversible/destructive).
 Don't use when: as a generic CTA — pick `btn-default` or `btn-tinted-accent` to keep the status colors meaningful.
@@ -155,21 +211,25 @@ Don't use when: as a generic CTA — pick `btn-default` or `btn-tinted-accent` t
 ### Cards
 
 #### card-passive
+**Status:** `bench-v1` (bench `1c0148b`).
 **`st.container(key="card-passive")` wrapper** — paper-0 surface, 1.5 px paper-2 border, 6 px radius, 2 px stamp-soft shadow. **Non-interactive.**
 Use when: displaying read-only content that has shape but no click target (a stat group, a quote, a summary block).
 Don't use when: any child element accepts a click — promote to `card-interactive`.
 
 #### card-interactive
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: plan 02-04 lecture multi-select. **Note:** the original Q3 overlay-button technique FAILED in live testing (`SPIKES.md § Q3`); plan 02-04 ships the visible "Select / Selected ✓" button fallback per the Q3 decision tree.
 **`st.container(key="card-interactive")` wrapper** — same surface as passive but with a 4 px stamp shadow that grows to 6 px on hover, plus a `translate(-2px, -2px)` lift. Click-active.
 Use when: the whole card body is the click target (lecture-card on P3, attempt-card on P5).
 Don't use when: only one inner element is clickable — use `card-passive` and put the button inside.
 
 #### class-card
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: plan 02-03 P2 My Classes grid.
 **`st.container(key="class-card")` wrapper** — class-grid card on P2 My Classes. Paper bg (warmer than `card-*`), 1.5 px paper-4 border, 4 px stamp shadow, **22/24 padding (Defect 7 ruling)**, 16 px bottom margin.
 Use when: rendering one class entry on the P2 grid.
 Don't use when: rendering anywhere else — `card-interactive` is the generic equivalent.
 
 #### stat-card
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: P6 dashboard (Phase 3) — Phase 2 doesn't ship dashboard tiles.
 **`st.container(key="stat-card")` wrapper** — KPI tile with `min-height: 110px` + flex column + `space-between` so a one-digit value and a long label keep the same card height. Paper-0 fill, 14/18 padding, 2 px stamp-soft shadow.
 Use when: displaying a single number alongside a label and optional delta arrow (P6 Dashboard tiles, P5 review summary).
 Don't use when: the content is multi-paragraph — use `card-passive`.
@@ -177,6 +237,7 @@ Don't use when: the content is multi-paragraph — use `card-passive`.
 ### MCQ option (D-2.20 + D-2.20a)
 
 #### mcq-opt-{question_id}-{option_letter}
+**Status:** `bench-v1` (bench `1c0148b`, after the D-2.20a `:has(input:checked)` refactor). Production-lock at plan 02-05 P4 Take Mock.
 **`st.container(key="mcq-opt-{q}-{letter}")` wrapper** — the live P4 take-mock option. Container key is just option identity; CSS branches on `:has(input:checked)` to flip Off↔On.
 Variants:
 - **Off** (default, `:not(:has(input:checked))`): paper-1 bg, 1 px paper-shadow border, no shadow, 13/14 padding.
@@ -186,6 +247,7 @@ Use when: rendering option checkboxes on P4. Click anywhere on the wrapper toggl
 Don't use when: the option is in P5 review state — use the `-correct` / `-incorrect` review variants below.
 
 #### mcq-opt-{key}-correct / mcq-opt-{key}-incorrect
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at plan 02-06 P5 Mock Review.
 **State-baked review keys.** Used ONLY on P5 mock-review screens — the wrapper key is set at render time based on the user's saved answer.
 - **Correct:** ok-wash bg, 2 px ok border, 2 px stamp shadow, 14/15 padding.
 - **Incorrect:** accent-soft bg, 2 px accent-deep border, 2 px stamp shadow, 14/15 padding.
@@ -195,6 +257,7 @@ Why state-baked here vs `:has()` for Off/On: P5 paints a static review of a fini
 ### MCQ card container (D-2.23)
 
 #### mcq-card
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at plan 02-05 P4 Take Mock — full card geometry decision (5-star ML difficulty + rationale block + 3 action buttons) deferred to that plan per the D-2.23 exception.
 **`st.container(key="mcq-card")` wrapper** — the frame around the question header (Q-number + class + difficulty) + question text + option stack + action row. Paper bg, 2 px paper-shadow border, 6 px radius, 3 px stamp shadow, 22/20/20/20 padding (locked Figma value, exception to the symmetric-padding rule per Defect 3 ruling), max-width 600 px, 13 px vertical gap between sections.
 Use when: rendering the live take-mock card on P4 or the review card on P5.
 Don't use when: anywhere else — the geometry is locked to the Figma 4045:282 spec.
@@ -202,6 +265,7 @@ Don't use when: anywhere else — the geometry is locked to the Figma 4045:282 s
 ### Difficulty display (D-2.24)
 
 #### difficulty-stars
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at plan 02-05 (5-slot ML-driven version) once Phase 4's ML model fills `difficulty_score`.
 **Python helper `difficulty_stars(score: float)`** — paints 5 SVG stars in `assets/icons/star_{filled,empty}.svg`, with `n = max(1, min(5, round(score * 5)))` filled. Inlined as SVG (no `<img>` tags per D-2.24).
 Use when: a question has a non-NULL `difficulty_score` and you want to render the stars chip.
 Don't use when: `difficulty_score` is NULL — render the dashed-frame "—" placeholder instead at the call site.
@@ -209,6 +273,7 @@ Don't use when: `difficulty_score` is NULL — render the dashed-frame "—" pla
 ### Chip (D-2.19)
 
 #### surf-chip
+**Status:** `bench-v1` (bench `1c0148b`).
 **Python helper `chip(text, variant=...)`** — returns the HTML for one inline tag. Compose rows via `chips_row(items)`.
 Variants: `outline` (default — paper-4 border, no fill), `accent` (accent-vibrant border + text), `solid` (paper-5 fill, paper-0 text), `dashed` (dashed border).
 Use when: short labels that group with siblings (lecture tags, MCQ category, status flags).
@@ -217,6 +282,7 @@ Don't use when: longer than ~3 words — text starts wrapping inside the pill wh
 ### Steps indicator (D-2.19)
 
 #### surf-steps
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: plan 02-02 P1 Sign Up wizard.
 **Python helper `steps(items)`** — inline step row with bullets. Each item is `(label, status)` where status ∈ `done / active / todo`.
 Use when: onboarding (Sign up → Add class → Take mock) or wizard flow indicators.
 Don't use when: more than ~5 steps — wraps awkwardly even with `flex-wrap`.
@@ -224,6 +290,7 @@ Don't use when: more than ~5 steps — wraps awkwardly even with `flex-wrap`.
 ### Score (D-2.19)
 
 #### surf-score
+**Status:** `bench-v1` (bench `1c0148b`). First real-context appearance: plan 02-03 class card or plan 02-06 P5 summary banner — whichever ships first.
 **Python helper `score(value: float)`** — renders the Swiss 1-6 grade as big italic Fraunces, color-keyed:
 - `< 3.5` → `--accent-vibrant` (red)
 - `3.5–4.99` → `--warn` (gold)
@@ -235,6 +302,7 @@ Don't use when: rendering a percentage (use `stat-card` with `--paper-5` text in
 ### Stat helpers
 
 #### surf-stat-value, surf-delta-{up,down,flat}
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at P6 dashboard (Phase 3).
 **Python helper `stat_card(label, value, eyebrow_text, delta, delta_dir)`** — writes the four typography lines of a KPI: eyebrow + label + big italic value + optional delta arrow.
 Variants: `delta_dir` ∈ `up` (▲ green) / `down` (▼ red) / `flat` (— grey).
 Use when: KPI tile contents (P6 dashboard).
@@ -242,16 +310,19 @@ Use when: KPI tile contents (P6 dashboard).
 ### Topbar (D-2.10 + Defect 4 + 9 amendments)
 
 #### topbar
+**Status:** `bench-v1` (bench `1c0148b`, after Defect 4 + Defect 9 amendments). First real-context appearance: plan 02-03 (every authenticated page from P2 onward starts with this).
 **`st.container(key="topbar")` wrapper** — the page header strip: brand wordmark, breadcrumb, icon buttons. 14 px top padding, 0 px bottom padding (the bottom border IS the separator line — explicit exception to the symmetric-padding rule). 32 px bottom margin.
 Use when: every authenticated page (P2-P7) starts with this. P1 sign-up doesn't have a topbar.
 
 #### topbar-icon-{home,settings}
+**Status:** `bench-v1` (bench `1c0148b`, after Defect 4a/4b/4c/4d + Defect 9 fixes).
 **`st.container(key="topbar-icon-{home,settings}")` wrapper** — 38×38 icon button. Glyph 22 px, flex-centred, transparent fill, 1.5 px paper-4 border. Hover lifts to paper-1 + 2 px stamp-soft shadow. **No underline** (Defect 9 broad strip handles BaseWeb's focus/focus-visible/hover lines).
 Use when: top-bar quick actions (Home, Settings, future Search).
 
 ### Empty state
 
 #### empty
+**Status:** `bench-v1` (bench `1c0148b`, after Defect 5 flex-centring). First real-context appearance: plan 02-03 P2 (no classes yet) or plan 02-04 (no mocks yet).
 **`st.container(key="empty")` wrapper** — dashed paper-3 border, 6 px radius, 36/28 padding, flex-column with both-axis centring (Defect 5).
 Use when: a list page is empty (no classes, no mocks, no attempts).
 Recipe:
@@ -265,30 +336,38 @@ with st.container(key="empty"):
 ### `st.status` skin (D-2.21)
 
 #### stStatus / stStatusWidget
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at plan 02-04 P3 lecture ingestion log.
 Reach via `[data-testid="stStatus"]` and `[data-testid="stStatusWidget"]` (both selectors covered for cross-version compatibility). 4 px left-border `--accent-vibrant` while running, `--ok` when complete, `--accent-vibrant` when error. Paper-1 bg, eyebrow-style mono uppercase summary text.
 Use when: P3 lecture ingestion progress block.
 
 ### `st.expander` skin (D-2.21)
 
 #### stExpander
+**Status:** `bench-v1` (bench `1c0148b`). Production-lock at plan 02-06 P5 difficulty breakdown.
 Reach via `[data-testid="stExpander"]`. Paper-1 bg, 6 px radius, 1.5 px paper-3 border. Hover lifts `(-1px, -1px)` + 2 px stamp-soft shadow + paper-0 bg.
 Use when: collapsible "more details" panels (P5 difficulty breakdown).
 
 ### Typography helpers (D-2.19)
 
 #### serif-h2 + heading_h2
+**Status:** `bench-v1` (bench `1c0148b`, added in Defect 6 Tiago ruling).
 **Python helper `heading_h2(text)`** — emits `<h2 class="serif-h2">…</h2>` (Fraunces SemiBold Italic 28 / 115% / -1% — Figma `Serif/H2` row, ruling Defect 6). Both bare `<h2>` (auto-rendered by `st.markdown("## …")`) and the `.serif-h2` utility class paint identically; callers can mix them.
 
 #### surf-eyebrow + eyebrow
+**Status:** `bench-v1` (bench `1c0148b`).
 **Python helper `eyebrow(text)`** — Mono uppercase tracking-out 10 px `--paper-3`. Section labels above content blocks.
 
 #### surf-caption + caption
+**Status:** `bench-v1` (bench `1c0148b`).
 **Python helper `caption(text)`** — Serif italic 13 px `--paper-3`. Helper text under headings.
 
 #### surf-meta + meta
+**Status:** `bench-v1` (bench `1c0148b`).
 **Python helper `meta(text)`** — Mono mid-grey 11 px. Card metadata strips ("12 LECTURES · 78%").
 
 ### Surfaced-but-deferred (built in later plans)
+
+All three are **`deferred`** — spec'd or surfaced in research but not yet built in `theme.py`.
 
 - **summary-banner** (P5 final score, plan 02-06) — full-width paper-0 panel + 4 px stamp shadow + `score()` helper. Wrapper key reserved as `summary-banner`.
 - **sidebar-list** (P3 Past Attempts, plan 02-04) — clickable list items with paper-2 dividers. Wrapper key `sidebar-list`.
