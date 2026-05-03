@@ -297,9 +297,23 @@ once Tiago executes the 5-minute test.
 
 ### Q8 — `@st.cache_resource` on `app/db/connection.py`
 
-**Status:** Pending — verification runs as Task 8 of plan 02-01.
+**Status:** **FIXED in Wave 1** (Plan 02-01 Task 8). The Phase-1
+`connect()` was missing `@st.cache_resource` — every Streamlit rerun
+opened a new SQLite handle. Surgically added the decorator + an
+`import streamlit as st` line; documented the new caching contract in
+the module docstring and the `connect.clear()` escape hatch for tests.
 
-> Verdict + test status will be filled in by Task 8.
+**Q8 verdict:** FIXED.
+
+**Test:** `tests/test_db_connection_cache_resource.py` — 3 cases pass:
+identity (two calls → same object), FK pragma on (= 1), cache-key
+isolation (different `db_file` args → distinct connections).
+
+**Pre-existing smoke test impact:** `tests/test_smoke.py
+::test_ingestion_end_to_end_against_fresh_sqlite` continues to pass
+unchanged — it passes a `tmp_path`-based `db_file` which is a different
+cache key from the production no-arg call, so the two coexist without
+interference.
 
 ---
 

@@ -157,4 +157,46 @@ Q3 verdict: PASS / FAIL
 
 ## Q8 verdict — `@st.cache_resource` on `app/db/connection.py` (RESEARCH §11 Q8)
 
-**Status:** TBD. To be filled by Plan 02-01 Task 8.
+**Status:** **FIXED in Wave 1.** Plan 02-01 Task 8.
+
+### What changed
+
+`app/db/connection.py` `connect()` was missing `@st.cache_resource` —
+without the decorator, every Streamlit rerun (and there's one per user
+interaction) opened a fresh `sqlite3.Connection`, discarding the
+previous one. Phase-1 carry-forward fix:
+
+- Added `import streamlit as st`.
+- Decorated `connect()` with `@st.cache_resource`. The cache key is the
+  function arguments — no-arg production calls share one connection
+  across the session; tests passing `db_file=tmp_path/'…'` get their
+  own.
+- Updated the module docstring to document the new behaviour and the
+  `connect.clear()` escape hatch for tests that need to swap the DB
+  at runtime.
+- The existing `check_same_thread=False` was already correct (lets the
+  cached connection be reused across Streamlit's worker threads).
+
+### Verification
+
+`tests/test_db_connection_cache_resource.py` covers three properties:
+
+1. **Identity** — `connect(db_file)` called twice with the same arg
+   returns the same Python object (`is` check).
+2. **FK pragma on** — `PRAGMA foreign_keys` returns `1` on the cached
+   connection.
+3. **Cache key isolation** — `connect(db_a) is not connect(db_b)` when
+   `db_a != db_b` (the cache key includes the path argument).
+
+All 3 tests pass under bare pytest (no `streamlit run` context):
+`@st.cache_resource` falls back to a Python-dict cache when the
+ScriptRunContext is missing — it still returns the same object on
+repeat calls, just emits a warning.
+
+### Q8 verdict: **FIXED**
+
+Pre-existing smoke test (`tests/test_smoke.py
+::test_ingestion_end_to_end_against_fresh_sqlite`) continues to pass
+because it explicitly passes `tmp_path/'user.sqlite'` as `db_file`,
+which is a different cache key from the production no-arg call — the
+two coexist in the cache without interference.
