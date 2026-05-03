@@ -42,13 +42,13 @@ The video track (Juliette + Cons) runs in parallel with code from Phase 2 onward
   3. From P3 Class, the user can upload a lecture PDF (triggering Phase-1 ingestion live), pick N lectures, and launch a Standard mock of `5 × N` questions; or tap the sidebar Study Next card to launch a PRACTICE mock of every MCQ tied to the surfaced LO's page range (per 02-CONTEXT D-2.8 + D-4.3).
   4. P4 renders one MCQ at a time with a total-elapsed timer, SKIP/NEXT actions, mock pinned in `st.session_state`, and persists the attempt + answers to SQLite on completion.
   5. P5 shows each question's correctness, the Claude rationale, the question's 6 difficulty scores, and the Swiss-formula final note (`5 × correct/max + 1`).
-**Plans**: 7 plans
+**Plans**: 7 plans (1 done)
 Plans:
-- [ ] 02-01-PLAN.md — Wave 1 foundation: Figma tokens + theme files + previews/ scaffold + 15 sidecar walkthrough back-fill + spikes Q1/Q3/Q4/Q8
+- [x] 02-01-PLAN.md ✅ 2026-05-03 — Wave 1 foundation: theme + tokens + previews/ scaffold + 18 script-sidecar walkthroughs + Wave-1 spike verdicts (Q3 FAIL, Q4 mech-pending-RSS, Q8 FIXED) + ui/documentation.md filled + D-2.20a + D-2.25a + C-22 amendments. Bench approved `1c0148b`; doc approved `f166ea2`. See `02-01-SUMMARY.md`.
 - [ ] 02-02-PLAN.md — Wave 2: P1 Sign Up + queries_users + auth router upgrade
 - [ ] 02-03-PLAN.md — Wave 2: P2 My Classes carousel + Add Class flow (validates PIPE-02 end-to-end)
-- [ ] 02-04-PLAN.md — Wave 3: P3 Class hub + live ingestion + lecture multi-select + build_mock + study_next + REQUIREMENTS amendment
-- [ ] 02-05-PLAN.md — Wave 4: P4 Take Mock (timer fragment, MCQ card, UPSERT-on-nav, schema constraint amendment)
+- [ ] 02-04-PLAN.md — Wave 3: P3 Class hub + live ingestion + lecture multi-select + build_mock + study_next + REQUIREMENTS amendment. **Inherits Q3 FAIL constraint** — visible "Select / Selected ✓" button per lecture card (no overlay re-litigation).
+- [ ] 02-05-PLAN.md — Wave 4: P4 Take Mock (timer fragment, MCQ card, UPSERT-on-nav, schema constraint amendment). **Gated on:** Q4 RSS-delta observation + OQ-1 Cards/Quizz variant 3 rationale block restored in Figma.
 - [ ] 02-06-PLAN.md — Wave 4: P5 Review Mock + brain/grading_formula (Swiss formula single source of truth)
 - [ ] 02-07-PLAN.md — Wave 5: E2E AppTest happy path + sidecar audit + decision coverage table + final visual sweep
 **UI hint**: yes
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Ingestion Spine + Database | 4/5 | In progress | - |
-| 2. Mock Taking Loop (P1–P5) | 0/7 | Planned | - |
+| 2. Mock Taking Loop (P1–P5) | 1/7 | In progress (Wave 1 done) | - |
 | 3. Dashboard + Settings (P6–P7) | 0/TBD | Not started | - |
 | 4. ML Difficulty Model | 0/TBD | Not started | - |
 | 5. Submission Package | 0/TBD | Not started | - |
