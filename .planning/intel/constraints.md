@@ -202,3 +202,8 @@
   3. **Function docstrings** (Google style) — but only for public functions. Private helpers get one-line comments where the WHY isn't obvious from the name. Don't pad with `Args:` blocks restating type hints.
   4. **No frontmatter blocks** in sidecar `.md` files unless explicitly requested.
 - **Verification signal:** a non-engineer teammate opens a sidecar `.md` and can describe what the script does in their own words after one read. Length is whatever it takes to be that clear — no longer, no shorter.
+- **Scope clarification (2026-05-03, during Plan 02-01 Task 12 verification):** C-22 applies to **script sidecars** — `.md` files that document a sibling Python (or SQL/etc.) source file. It does NOT apply to:
+  - **System-prompt files** (`*_system_prompt.md`) — these ARE the prompt content sent to Claude; their "logic" is the natural-language instructions, not Python functions to walk through.
+  - **Design-system edit-maps** (e.g. `app/brain/theme/edit_this_later.md`) — value/where-to-find lookup indexes, not code documentation.
+
+  The walkthrough rule's intent is "explain the code to a non-CS reader." When there is no code, the rule does not apply. The Plan 02-01 verifier (`.planning/phases/02-mock-taking-loop-p1-p5/02-01-PLAN.md`, Task 9 `<automated>` block) walks an explicit list of 18 script sidecars rather than a broad `find` over `app/**/*.md`.
