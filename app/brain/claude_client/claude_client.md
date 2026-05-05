@@ -296,25 +296,3 @@ def call_claude(
     cleaned = _FENCE_CLOSE.sub("", _FENCE_OPEN.sub("", text.strip())).strip()
     return json.loads(cleaned)
 ```
-
-## Code walkthrough
-
-This script is the SINGLE place in the whole app that talks to Claude. Every Claude call across Surf — factsheet cleaner, LO extractor, MCQ generator, future settings flows — goes through this one wrapper. The reason for funneling everything is twofold: (1) one place to swap the model or the auth path when something changes upstream, and (2) prompt caching only works when the system prompt comes through the same module. Here's what each piece does.
-
-**Module-level imports + `load_dotenv()`** — Pulls in the official Anthropic SDK plus `python-dotenv`, then immediately calls `load_dotenv()`. That call reads a local `.env` file (gitignored) into the process environment so `ANTHROPIC_API_KEY` is available before the client is created on the next line. Watch out for: if `.env` doesn't exist or the variable isn't set, the client is built with an empty key and the FIRST real call fails with an authentication error — not at import time.
-
-**`DEFAULT_MODEL = "claude-sonnet-4-6"` and `DEFAULT_MAX_TOKENS = 8192`** — The two knobs every caller inherits unless they override. Sonnet is the price/capability sweet spot for Surf's MCQ work; the 8192-token output budget is large enough for a full batch of MCQs without being wasteful. Both are constants so a model upgrade is a one-line change here, not a sweep across the codebase.
-
-**`_FENCE_OPEN` and `_FENCE_CLOSE` regexes** — Pre-compiled patterns for stripping markdown code fences (```json ... ```) that Claude occasionally wraps JSON responses in even when explicitly told not to. The patterns are tolerant — `json` or `JSON` or no language tag, leading or trailing whitespace, all match. Used only when `expect_json=True`. The leading underscore says "internal".
-
-**`_client = Anthropic(api_key=...)`** — Creates the SDK client at import time using the env-var key. Module-level so the same client (and its connection pool, retry logic, etc.) is reused across every call. The `TODO` comment notes that once the Sign Up page is built, this should swap to a per-user key fetched from `~/.surf/user.sqlite` — but for Phase 1 the env-var route is the locked path.
-
-**`call_claude(system_prompt, user_message, model, max_tokens, expect_json, cache_system)`** — The single public function and the heart of the wrapper. In plain language, the function does five things:
-
-1. **Build the system block.** When `cache_system=True` (the default), wraps the prompt in a list-of-one-dict shape with a `cache_control: {"type": "ephemeral"}` annotation. That's the Anthropic API's signal to cache the system prefix so subsequent calls within ~5 minutes only pay ~10% of the input cost. When `cache_system=False`, passes the prompt as a plain string (no caching).
-2. **Send the request** via `_client.messages.create(...)`. Standard Anthropic Messages API call with the system block, the user message, the model, and the max-tokens budget.
-3. **Pull the text out of the response.** Claude's response can technically contain multiple content blocks (text, tool-use, extended-thinking). The function uses `next(...)` over a generator that picks the first block whose `type == "text"`. If no text block exists (a future tool-use scenario), raises `TypeError` with a clear "got types" message rather than returning gibberish.
-4. **Return plain text** when `expect_json=False`. That's the simple case — string in, string out.
-5. **Parse JSON** when `expect_json=True`. Strips any leading ```json fence, any trailing ```, trims whitespace, and runs `json.loads`. Returns a Python dict. Watch out for: if Claude returns invalid JSON (a hallucinated key, unbalanced quotes), `json.loads` raises `JSONDecodeError` and the orchestrator's `_call_with_retry` catches it for a second attempt.
-
-**Why the wrapper is exactly this thin** — Specialist scripts (the LO extractor, MCQ generator, factsheet cleaner) load their own system prompt from a sibling `.md` file and call this one function. They are NOT responsible for retry, JSON-fence stripping, or model selection — those concerns live here so a model bump or a prompt-format change is one edit, not eight. The orchestrator (`lecture_ingest.py`) is the layer above that wraps THIS function in retries.

@@ -4,7 +4,7 @@
 # machine before the 2026-05-14 Canvas submission.
 
 # UI
-streamlit>=1.50.0        # st.navigation + design-system floor (D-2.12, st.container(key=...))
+streamlit>=1.36          # required for st.navigation() multi-page API
 
 # LLM
 anthropic>=0.40          # Claude API client

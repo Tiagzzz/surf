@@ -34,7 +34,6 @@ ENV/
 .idea/
 *.swp
 *.swo
-.claude/
 
 # OS
 .DS_Store
@@ -47,6 +46,28 @@ docs/handoff_*/
 # NotebookLM analysis input — not Surf code, not committed)
 OLD_EXAM_CATALOG/
 
-# Canvas course material downloaded for NotebookLM seeding — large,
-# ephemeral, not Surf code
+# Local-only project planning, agent instructions, and handoff/control files
+AGENTS.md
+CLAUDE.md
+SAFE_CLEANUP_AND_CONTINUATION_PLAN.md
+docs/
+
+# Local agent/worktree artifacts and preview scratchpads
+.claude/
+previews/
+
+# Canvas/course downloads are local reference material, not repo source
 canvas_downloads/
+
+# Local GSD planning state; Phase XI may regenerate or revise this
+.planning/
+
+# SQLite sidecar/runtime files
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-wal
+*.db-shm
+*.db-journal

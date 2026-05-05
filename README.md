@@ -35,7 +35,7 @@ Open `http://localhost:8501` in your browser. On first launch you will be asked 
 
 ## Project structure
 
-The codebase is organised into **10 buckets**, with **one sub-folder per pipeline** inside each bucket. See `docs/architecture.md` for the full schema.
+The codebase is organised into **10 buckets**, with **one sub-folder per pipeline** inside each bucket. Internal planning and handoff documents are intentionally kept local-only and are not part of the GitHub repo.
 
 ```
 surf/
@@ -60,9 +60,15 @@ surf/
 │   ├── dashboard/              # Tier 2 — P6
 │   └── settings/               # Tier 2 — P7
 ├── tests/                      # pytest tests, mirrors app/
-├── docs/                       # architecture.md · contribution_matrix.md
+├── previews/                   # local visual preview sandboxes when included for a task
 └── assets/                     # screenshots, demo PDFs, video assets
 ```
+
+---
+
+## Repository hygiene
+
+Internal planning, handoff, course-download, and agent-instruction files are intentionally excluded from GitHub. The public repo should contain runnable app code, tests, sanitized assets, and this self-contained README only. Local SQLite databases, API keys, Canvas downloads, and agent worktrees must not be committed.
 
 ---
 

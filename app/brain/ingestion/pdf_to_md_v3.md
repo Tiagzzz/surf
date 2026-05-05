@@ -376,31 +376,3 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 ```
-
-## Code walkthrough
-
-This script turns a PDF file (typically a lecture slide deck) into a markdown string that the rest of Surf can work with. It tries the smart extraction path first (`pdfplumber` reads the PDF's actual text + finds tables) and falls back to OCR only when the smart path returns almost nothing — which catches scanned-image-only PDFs. Output uses `--- PAGE N ---` markers between slides because the page splitter keys on that exact shape. Here's what each piece does, top to bottom.
-
-**Module docstring + imports** — `pdfplumber` is the heavy lifter for native text + table extraction. `pdf2image` rasterizes pages into PNG images for the OCR fallback path; `pytesseract` is the OCR engine that reads text out of those images. `argparse` + `re` + `pathlib.Path` are the Python stdlib pieces. Both `pdf2image` and `pytesseract` need system-level binaries installed (`poppler` and `tesseract` respectively) — that's a setup gotcha, not a Python-package one.
-
-**`sanitize_filename(name)`** — In plain language: cleans a string so it's safe to use as a filename. Replaces anything that isn't a word character, hyphen, dot, or space with an underscore, then strips leading/trailing whitespace. Returns `"output"` if the cleaned result is empty (defensive — never produces an unnamed file). Used to derive output filenames from PDF stems.
-
-**`ocr_pdf(pdf_path, dpi=300, lang="eng")`** — In plain language: the OCR fallback path. Rasterizes every PDF page into a PNG image at 300 DPI (`convert_from_path`), runs Tesseract over each image to recognize text (`pytesseract.image_to_string`), prepends a `--- PAGE N ---` marker to each page's text, and joins everything with double newlines. Returns the full document as a single markdown string. Watch out for: 300 DPI per page is memory-heavy on a large deck — a 100-slide PDF can briefly use a few GB.
-
-**`_looks_like_heading_caps(line)`** — Internal helper. Returns True for lines that look like ALL-CAPS headings: every letter uppercase, 3-10 words long, at least 12 characters total. Used by `_normalize_page_text` below to promote those lines to `## Heading` markdown. The bounds matter — single ALL-CAPS words ("API", "URL") shouldn't become headings, and very long ALL-CAPS paragraphs are usually emphasis or warnings, not headings.
-
-**`_normalize_page_text(page_text)`** — In plain language: takes the raw text of one page and tidies it into a list of cleaner lines. Three things happen: (1) collapse runs of 3+ blank lines down to 2, (2) merge consecutive short lines (1-2 words each) into a single line because PDF extraction often splits a single sentence across multiple wrapped lines, (3) promote ALL-CAPS-heading-shaped lines to `## Heading` markdown so downstream readers can navigate the structure. Watch out for: the heuristic for "merge short lines" is imperfect — bulleted lists of single-word items can get glued together. Acceptable trade-off because the LO-extractor reads markdown semantically, not line-by-line.
-
-**`_escape_cell(cell)`** — Internal helper. Sanitizes one table cell so it survives being embedded in a markdown table row: replaces `|` with `\|` (otherwise it breaks the column boundary), replaces newlines with `<br>` (otherwise the row would split mid-cell), and trims whitespace. Returns the empty string for None cells.
-
-**`_table_to_markdown(table)`** — In plain language: takes a 2D list of cell values that pdfplumber extracted from one table and turns it into a markdown-table string. Drops fully-empty rows, pads short rows with empty cells so every row has the same number of columns, builds the `| header | header |` line + the `| --- | --- |` separator + the body rows, and joins them with newlines. Returns the empty string if there are no non-empty rows.
-
-**`extract_with_tables(pdf_path)`** — The main public extraction function. In plain language: opens the PDF with pdfplumber, walks every page, and for each page (1) finds tables and converts them to markdown via `_table_to_markdown`, (2) extracts the prose text but EXCLUDES regions inside table bounding boxes (the inner `_outside_tables` filter does this — it checks each text object's centre against every table's rectangle), (3) normalizes that prose via `_normalize_page_text`, (4) writes a `--- PAGE N ---` marker followed by the table blocks followed by the prose. After all pages, collapses excess blank lines and returns a tuple `(markdown_string, table_count, total_text_chars)`. The caller uses `total_text_chars` to decide whether the native path was successful — values under 150 mean the PDF is image-only and the OCR fallback should run.
-
-**`write_markdown(output_path, content)`** — In plain language: writes the markdown string to disk, creating any missing parent directories. UTF-8 encoded so non-Latin characters survive.
-
-**`build_output_paths(pdf_path, output_dir)`** — In plain language: derives the matching `.md` and `.json` paths for a given PDF input. Used so a single PDF input always produces a predictable pair of output files in the same folder.
-
-**`write_metadata(output_path, meta)`** — In plain language: writes a small JSON sidecar that records what the extraction did (which path was used, what language, DPI, script version, table count). Useful for debugging "why did this PDF look weird?" later.
-
-**`main()`** — In plain language: the CLI entry point. Parses command-line args (one or more PDF paths, output directory, `--ocr` flag to force OCR, language, DPI), then for each PDF: tries `extract_with_tables` first, checks if the text-character count is sparse (< 150), and if so falls back to `ocr_pdf`. Writes the markdown and a JSON metadata sidecar. Prints progress lines so the user can follow what's happening. Watch out for: the script is also importable as a library — the orchestrator (`lecture_ingest.py`) calls `extract_with_tables` directly without going through `main()`, so the OCR fallback isn't applied automatically there. The orchestrator currently relies on lecture PDFs having extractable text.

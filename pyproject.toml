@@ -1,19 +1,7 @@
 # Surf — project configuration.
 #
-# Ruff config + dependency pins. No build system: Surf is run directly via
-# `streamlit run streamlit_app.py`, not installed as a package. The
-# `[project]` table below exists so `pip install -r requirements.txt` (or a
-# future `pip install -e .`) can read the version floor for Streamlit, which
-# the design system in `app/brain/theme/theme.py` depends on (modern
-# `[theme]` palette knobs + `st.container(key=...)` wrappers, RESEARCH §1).
-
-[project]
-name = "surf"
-version = "0.0.0"
-requires-python = ">=3.11"
-dependencies = [
-    "streamlit>=1.50.0",  # design-system floor — D-2.12 / RESEARCH §1, §9, A5
-]
+# Ruff config only for now (lint + format). No build system: Surf is run
+# directly via `streamlit run streamlit_app.py`, not installed as a package.
 
 [tool.ruff]
 line-length = 100
@@ -25,25 +13,10 @@ extend-exclude = [
 
 [tool.ruff.lint]
 # E = pycodestyle errors · F = pyflakes · I = isort
-# Conservative ruleset that matches the team standard in CLAUDE.md §2.
+# Conservative ruleset for the team lint standard.
 select = ["E", "F", "I"]
 
 [tool.ruff.lint.per-file-ignores]
 # Long lines OK in tests + system-prompt strings + scaffolded __init__ files.
 "tests/*" = ["E501"]
 "**/__init__.py" = ["F401"]  # re-exports look like unused imports
-# theme.py embeds the design-system CSS as a Python string; CSS rules are
-# legitimately one long line each and should not be split mid-rule.
-"app/brain/theme/theme.py" = ["E501"]
-"previews/_theme.py" = ["E501"]
-"previews/components/_theme_bench/_theme.py" = ["E501"]
-# Every spike sandbox under previews/spikes/<name>/ carries its own
-# byte-for-byte _theme.py copy (sandbox isolation, D-2.22). Same CSS,
-# same long lines, same ignore.
-"previews/spikes/*/_theme.py" = ["E501"]
-# Same rule for component sandboxes under previews/components/<name>/
-# that ship their own byte-for-byte _theme.py copy (e.g. mcq_card_p4).
-"previews/components/*/_theme.py" = ["E501"]
-# Bench preview.py composes the design system; long st.* call lines (e.g.
-# stat_card with 4 kwargs) read better on one line than mid-call-broken.
-"previews/components/_theme_bench/preview.py" = ["E501"]
