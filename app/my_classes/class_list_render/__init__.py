@@ -33,12 +33,14 @@ import base64
 from functools import lru_cache
 from html import escape
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Iterable, Mapping
 
 import streamlit as st
 
 from app.brain.page_header import render_page_header
 from app.brain.page_layout import page_rail
+from app.brain.processing_popup import show_processing_popup
 from app.brain.topbar import render_topbar
 from app.db.queries_classes import list_classes_for_user
 from app.db.queries_dashboard import (
@@ -1252,6 +1254,8 @@ def _render_add_class_form(
         if factsheet_file is None:
             st.error(MISSING_FACTSHEET_ERROR)
             return
+        popup = st.empty()
+        show_processing_popup(popup, state="processing")
         with st.spinner(PROCESSING_TOAST):
             result = submit_fn(
                 user_id=user_id,
@@ -1260,6 +1264,8 @@ def _render_add_class_form(
                 factsheet_file=factsheet_file,
             )
         if result.get("ok"):
+            show_processing_popup(popup, state="done")
+            sleep(0.75)
             st.toast(SAVE_SUCCESS_TOAST)
             st.session_state[ADD_CLASS_OPEN_KEY] = False
             for stale in (
@@ -1270,10 +1276,13 @@ def _render_add_class_form(
                 st.session_state.pop(stale, None)
             st.rerun()
         elif result.get("error") == "missing_factsheet":
+            popup.empty()
             st.error(MISSING_FACTSHEET_ERROR)
         elif result.get("error") == "missing_api_key":
+            popup.empty()
             st.error(MISSING_API_KEY_ERROR)
         else:
+            popup.empty()
             st.toast(f"{PROCESS_FAIL_TITLE} — {PROCESS_FAIL_BODY}")
 
 

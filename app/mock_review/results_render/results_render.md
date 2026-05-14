@@ -40,7 +40,7 @@ attempt_id
   -> app.ml.personal_difficulty.score_questions(...)
   -> parse_review_row(...) for each row
   -> classify_option_state(...) for each option
-  -> summary card + ordered review cards with optional Difficulty for you: X/100 badge
+  -> summary card + difficulty-score explainer + ordered review cards with optional Difficulty for you: X/100 badge
   -> navigation buttons
 ```
 
@@ -73,7 +73,7 @@ Copy constants centralize fallback labels for unavailable type, unavailable rati
 
 ### Date and class helpers
 
-`_format_finished_at(...)` accepts stored timestamp shapes, treats naive SQLite timestamps as UTC, and displays them in the local Europe/Zurich timezone. `_lookup_class_name(...)` and `_class_name(...)` resolve the breadcrumb label with safe fallbacks.
+`format_finished_at(...)` accepts stored timestamp shapes, treats naive SQLite timestamps as UTC, and displays them in the local Europe/Zurich timezone. `_lookup_class_name(...)` and `_class_name(...)` resolve the breadcrumb label with safe fallbacks.
 
 ### Numeric and grade helpers
 
@@ -105,13 +105,23 @@ No snapshot column or row is written. D-17 is preserved: there is no schema for 
 
 Parses one saved review row, computes selected/correct/skipped sets, gets the result stamp, formats the stored question type, accepts an optional `difficulty_score` keyword from `render_review_mock_page`, forwards it to `_review_card_header_html(...)`, and renders up to four options with feedback under each option.
 
+### `_render_difficulty_score_explainer(...)`
+
+Renders the text-only `Understand your difficulty score` control directly above
+the first review card. Clicking it toggles a short plain-language explanation of
+the `1..100` difficulty score: lower numbers are gentler, higher numbers catch
+people out, the score uses question wording/distractors/lecture-load signals,
+and the student's own track record sharpens it over time. This helper is
+informational only. It does not fetch rows, call the scorer, mutate SQLite, or
+change the per-card score calculation.
+
 ### `_render_actions(...)`
 
 Renders the bottom navigation. `BACK TO CLASS` returns to class view. `OPEN DASHBOARD` refreshes `selected_class_id` when available and routes to dashboard.
 
 ### `render_review_mock_page(...)`
 
-The public renderer checks for a selected attempt, fetches summary and rows, falls back to recovery copy if anything essential is missing, renders the topbar and styles, computes threshold/skipped count, calls `_difficulty_score_map_for_review(class_id, review_rows)` once, then paints the hero, summary card, review rows (with the per-question personal-difficulty score forwarded), and actions. The score recomputation is on render — there is no frozen snapshot.
+The public renderer checks for a selected attempt, fetches summary and rows, falls back to recovery copy if anything essential is missing, renders the topbar and styles, computes threshold/skipped count, paints the hero and summary card, renders the difficulty-score explainer directly above the first review row, calls `_difficulty_score_map_for_review(class_id, review_rows)` once, then paints the review rows (with the per-question personal-difficulty score forwarded) and actions. The score recomputation is on render — there is no frozen snapshot.
 
 ## Visible elements
 
@@ -121,6 +131,7 @@ The public renderer checks for a selected attempt, fetches summary and rows, fal
 | Grade value | Stored `swiss_grade` for mock attempts; practice shows no grade in the hero. |
 | Result/score/percent/skipped | Stored summary fields and saved skipped rows. |
 | Threshold copy | Class pass threshold plus stored percent. |
+| Difficulty-score explainer | Text-only `Understand your difficulty score` toggle above the first review card. It explains the visible score without changing scoring or stored data. |
 | Question-type chip | Stored `question_type` label. |
 | Personal difficulty flag | Existing Phase 7 ribbon anchored to the top-right of each review card with a stacked `DIFFICULTY FOR YOU` label and the `Difficulty for you: X/100` screen-reader label. Tier color: green when score < 33, yellow (paper5 text) when 33 ≤ score ≤ 66, red when score > 66. Recomputed on every render via `app.ml.personal_difficulty.score_questions`; never frozen; omitted when the score is unavailable, out of range, or the scorer fails. |
 | Option feedback | Stored selected indices, correct indices, skipped flag, and rationales. |
@@ -129,7 +140,7 @@ The public renderer checks for a selected attempt, fetches summary and rows, fal
 
 - The page is read-only.
 - It must preserve saved row order.
-- It must not invent analytics or difficulty panels. The Phase 7 `Difficulty for you: X/100` badge is the **only** ML-flavored UI element on P5 and it is recalculated on every render — no visible six-feature metadata breakdown, no dashboard ML widget, no P5 layout redesign, no frozen per-attempt difficulty snapshot, and no UPDATE/INSERT to `attempts` / `attempt_answers`.
+- It must not invent analytics or difficulty panels. P5 may show the current Phase 7 `Difficulty for you: X/100` badge and this text-only explanatory disclosure, but still no visible six-feature metadata breakdown, no dashboard ML widget, no P5 layout redesign, no frozen per-attempt difficulty snapshot, and no UPDATE/INSERT to `attempts` / `attempt_answers`.
 - Practice attempts do not count toward class average and do not show a Swiss grade hero value.
 - Missing attempt context must recover to class navigation instead of crashing.
 - If the personal-difficulty scoring path fails for any reason, P5 must omit the badge rather than crash.
@@ -147,3 +158,5 @@ The public renderer checks for a selected attempt, fetches summary and rows, fal
 - Dropping skipped-state display can hide why a question was wrong.
 - Changing the dashboard handoff can open P6 without the reviewed class selected.
 - Rendering unescaped generated text would risk unsafe HTML in question/rationale copy.
+- Letting the difficulty explainer fetch, score, or save data would turn a
+  harmless disclosure into behavior and could make P5 less predictable.

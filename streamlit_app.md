@@ -1,12 +1,13 @@
 # `streamlit_app.py` — Streamlit entry point and router
 
-This file is the app entry point. It decides whether the user should see Sign Up or the authenticated app pages, then asks Streamlit to run the selected page.
+This file is the app entry point. It decides whether the user should see Sign Up or the authenticated app pages, sends a fresh signed-in browser session to My Classes, then asks Streamlit to run the selected page.
 
 ## What this file owns
 
 - One saved-user check through `app.brain.session.is_authenticated()`.
 - The Streamlit page list for the unauthenticated route.
 - The Streamlit page list for the authenticated app shell.
+- The one-time signed-in reload redirect to My Classes.
 - The final `st.navigation(pages).run()` call.
 
 It does not render page content, open the live database at import time, validate API keys, calculate dashboard metrics, or run ML code.
@@ -61,22 +62,37 @@ Streamlit can auto-discover a top-level `pages/` folder. Surf does not use that 
 
 The opening comments explain the whole file without changing runtime behavior. They are comments, not app copy, so users do not see them.
 
-### Imports
+### Imports and reload constants
 
 ```python
 import streamlit as st
 
 from app.brain.session import is_authenticated
+
+AUTHENTICATED_HOME_VIEW = "views/my_classes.py"
+AUTHENTICATED_HOME_REDIRECT_KEY = "_surf_authenticated_home_redirect_done"
 ```
 
-The entry point imports Streamlit and the one auth helper. It does not import page buckets, database query helpers, or ML modules.
+The entry point imports Streamlit and the one auth helper. It does not import page buckets, database query helpers, or ML modules. The constants name the signed-in home page and the private session flag used to avoid redirecting every in-app click.
+
+### One-time authenticated home redirect helper
+
+```python
+def should_redirect_authenticated_session_home(session_state) -> bool:
+    if session_state.get(AUTHENTICATED_HOME_REDIRECT_KEY):
+        return False
+    session_state[AUTHENTICATED_HOME_REDIRECT_KEY] = True
+    return True
+```
+
+A browser reload starts a fresh Streamlit session. On that first signed-in run, the helper returns `True` and marks the redirect as done. Later in-app navigation in the same session keeps working normally, so clicking Settings, Dashboard, Class, or Review does not bounce back to My Classes.
 
 ### Authenticated page list
 
 ```python
-if is_authenticated():
+if authenticated:
     pages = [
-        st.Page("views/my_classes.py", title="My Classes", default=True),
+        st.Page(AUTHENTICATED_HOME_VIEW, title="My Classes", default=True),
         st.Page("views/class_view.py", title="Class"),
         st.Page("views/take_mock_exam.py", title="Take Mock Exam"),
         st.Page("views/review_mock_exam.py", title="Review Mock Exam"),
@@ -96,31 +112,40 @@ else:
 
 When setup is incomplete, Sign Up is the only route. This keeps the user from reaching class data or settings before a local user/key exists.
 
-### Run the selected page
+### Register navigation, redirect fresh signed-in sessions, then run
 
 ```python
-st.navigation(pages).run()
+navigation = st.navigation(pages)
+
+if authenticated and should_redirect_authenticated_session_home(st.session_state):
+    st.switch_page(AUTHENTICATED_HOME_VIEW)
+
+navigation.run()
 ```
 
-Streamlit receives the allowed page list and runs whichever page is active in the sidebar.
+Streamlit first receives the allowed page list. If this is the first run of a signed-in browser session, the app switches to My Classes. Otherwise, Streamlit runs whichever allowed page is active.
 
 ## What could break if changed
 
 - Replacing `is_authenticated()` with a file-existence check can route first-time users incorrectly.
 - Adding a top-level `pages/` folder can duplicate sidebar entries.
+- Removing the one-time redirect flag can trap signed-in users on Settings/Dashboard after browser reloads, or can overcorrect and bounce every in-app navigation back to My Classes.
 - Reordering the authenticated list changes the first page the user sees after signup.
 - Importing page buckets or ML code here can make startup slower and harder to test.
 
 ## Verification
 
 ```bash
-python -m ruff check streamlit_app.py views --no-cache
+python -m pytest tests/test_streamlit_app_router.py -q
+python -m ruff check streamlit_app.py views tests/test_streamlit_app_router.py --no-cache
 python -m compileall streamlit_app.py views app
 python - <<'PY_INNER'
 from pathlib import Path
 text = Path("streamlit_app.py").read_text()
 required = [
-    'st.Page("views/my_classes.py", title="My Classes", default=True)',
+    'AUTHENTICATED_HOME_VIEW = "views/my_classes.py"',
+    'st.Page(AUTHENTICATED_HOME_VIEW, title="My Classes", default=True)',
+    'st.switch_page(AUTHENTICATED_HOME_VIEW)',
     'st.Page("views/class_view.py", title="Class")',
     'st.Page("views/take_mock_exam.py", title="Take Mock Exam")',
     'st.Page("views/review_mock_exam.py", title="Review Mock Exam")',

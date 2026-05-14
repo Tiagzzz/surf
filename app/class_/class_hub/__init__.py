@@ -42,12 +42,14 @@ import base64
 from functools import lru_cache
 from html import escape
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Iterable, Mapping
 
 import streamlit as st
 
 from app.brain.page_header import render_page_header
 from app.brain.page_layout import page_rail
+from app.brain.processing_popup import show_processing_popup
 from app.brain.topbar import render_topbar
 from app.class_.lecture_delete import delete_lecture_after_confirmation
 from app.class_.lecture_ingest import ingest_lecture as _ingest_lecture
@@ -65,6 +67,7 @@ from app.db.queries_questions import (
     ready_question_count_for_lecture,
 )
 from app.db.queries_users import get_saved_anthropic_api_key
+from app.mock_review.results_render import format_finished_at
 
 # --------------------------------------------------------------------------- #
 # Locked content constants
@@ -76,6 +79,21 @@ DASHBOARD_LABEL = "DASHBOARD >"
 CUSTOM_MOCK_LABEL = "CUSTOM MOCK >"
 CUSTOM_MOCK_EMPTY_TOAST = (
     "No ready questions for Custom Mock yet. Generate or import questions first."
+)
+CUSTOM_MOCK_HELP_LABEL = "How does it work? learn more"
+CUSTOM_MOCK_HELP_HIDE_LABEL = "How does it work? hide"
+CUSTOM_MOCK_HELP_BODY = (
+    'Custom Mock is your "hit me with the hard ones" button.\n\n'
+    "Surf scans the questions already prepared for this class and picks the "
+    "ones most likely to trip you up today. It looks at three things: how "
+    "tricky the question itself is, what the lecture covers, and how you've "
+    "done on similar questions before.\n\n"
+    "Just starting out? Surf leans on each question's difficulty rating. The "
+    "more you practice, the more personal it gets, your own weak spots start "
+    "shaping the picks.\n\n"
+    "You'll get up to 10 of the toughest, most useful questions dropped "
+    "straight into the normal mock exam screen. Nothing new is generated ! "
+    "Custom Mock only re-shuffles what's already there, so it's instant."
 )
 
 BUILD_MOCK_SECTION_LABEL = "Build a mock exam"
@@ -187,6 +205,7 @@ SELECTED_LECTURES_KEY = "p3_selected_lecture_ids"
 ATTEMPT_HISTORY_OPEN_KEY = "p3_attempt_history_open"
 DELETE_PENDING_LECTURE_KEY = "p3_delete_lecture_id"
 DELETE_MODE_KEY = "p3_delete_mode_active"
+CUSTOM_MOCK_HELP_OPEN_KEY = "p3_custom_mock_help_open"
 
 #: Inline SVG checkmark used by the selected-state lecture-pick
 #: checkbox visual. Lives as a module constant so the CSS line in
@@ -214,6 +233,9 @@ __all__ = [
     "DASHBOARD_LABEL",
     "CUSTOM_MOCK_LABEL",
     "CUSTOM_MOCK_EMPTY_TOAST",
+    "CUSTOM_MOCK_HELP_LABEL",
+    "CUSTOM_MOCK_HELP_HIDE_LABEL",
+    "CUSTOM_MOCK_HELP_BODY",
     "BUILD_MOCK_SECTION_LABEL",
     "BUILD_MOCK_HEADING",
     "ADD_LECTURE_LABEL",
@@ -244,6 +266,7 @@ __all__ = [
     "ATTEMPT_HISTORY_OPEN_KEY",
     "DELETE_PENDING_LECTURE_KEY",
     "DELETE_MODE_KEY",
+    "CUSTOM_MOCK_HELP_OPEN_KEY",
     "DELETE_LECTURE_BUTTON_LABEL",
     "DELETE_LECTURE_UNDO_LABEL",
     "build_lecture_grid_view_models",
@@ -794,7 +817,7 @@ def _styles() -> str:
       font-size: 13px !important;
       font-weight: 700 !important;
       height: 64px !important;
-      margin: 0 0 24px !important;
+      margin: 0 0 10px !important;
       transition:
         transform 0.08s ease-out,
         box-shadow 0.08s ease-out !important;
@@ -807,6 +830,59 @@ def _styles() -> str:
     .st-key-p3_custom_mock_button button:active {
       box-shadow: 0 0 0 var(--surf-shadow) !important;
       transform: translate(4px, 4px) !important;
+    }
+    .st-key-p3_custom_mock_learn_more {
+      margin: 0 0 20px !important;
+    }
+    .st-key-p3_custom_mock_learn_more button,
+    .st-key-p3_custom_mock_learn_more [data-testid="stButton"] button,
+    .st-key-p3_custom_mock_learn_more button * {
+      align-items: center !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: var(--surf-paper4) !important;
+      display: inline-flex !important;
+      font-family: "Fraunces", Georgia, serif !important;
+      font-size: 15px !important;
+      font-style: italic !important;
+      font-weight: 600 !important;
+      height: auto !important;
+      justify-content: flex-start !important;
+      letter-spacing: 0 !important;
+      line-height: 1.25 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      text-align: left !important;
+      text-transform: none !important;
+      transition: color 0.08s ease-out !important;
+      width: auto !important;
+    }
+    .st-key-p3_custom_mock_learn_more button:hover,
+    .st-key-p3_custom_mock_learn_more button:hover * {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--surf-accent) !important;
+      transform: none !important;
+      text-decoration: underline !important;
+      text-underline-offset: 3px !important;
+    }
+    .st-key-p3_custom_mock_help_card {
+      background: var(--surf-paper0);
+      border: 1.5px dashed var(--surf-paper3);
+      border-radius: 4px;
+      box-sizing: border-box;
+      color: var(--surf-paper5);
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 15px;
+      font-style: italic;
+      line-height: 1.5;
+      margin: -10px 0 24px;
+      padding: 16px 18px;
+    }
+    .surf-p3-custom-help-body {
+      margin: 0;
+      white-space: pre-line;
     }
 
     /* Build mock exam card — Paper0 hard-stamp 3px. */
@@ -2001,6 +2077,22 @@ def _render_custom_mock_button(
                 st.toast(CUSTOM_MOCK_EMPTY_TOAST)
 
 
+def _render_custom_mock_explainer() -> None:
+    """Render the text-only learn-more toggle under Custom Mock."""
+    is_open = bool(st.session_state.get(CUSTOM_MOCK_HELP_OPEN_KEY, False))
+    label = CUSTOM_MOCK_HELP_HIDE_LABEL if is_open else CUSTOM_MOCK_HELP_LABEL
+    with st.container(key="p3_custom_mock_learn_more"):
+        if st.button(label, key="p3_custom_mock_learn_more_action"):
+            st.session_state[CUSTOM_MOCK_HELP_OPEN_KEY] = not is_open
+    if st.session_state.get(CUSTOM_MOCK_HELP_OPEN_KEY, False):
+        with st.container(key="p3_custom_mock_help_card"):
+            st.html(
+                '<p class="surf-p3-custom-help-body">'
+                f"{escape(CUSTOM_MOCK_HELP_BODY)}"
+                "</p>"
+            )
+
+
 def _render_take_mock_button(
     state: dict[str, Any],
     *,
@@ -2238,8 +2330,8 @@ def _render_attempt_history(
     if not is_open:
         return
     for vm in view_models:
-        finished = vm.get("finished_at") or ""
-        date_str = str(finished).split("T")[0] if finished else "—"
+        finished = vm.get("finished_at")
+        date_str = format_finished_at(finished) if finished else "—"
         # Practice attempts move their LO title into the
         # left column under the date so the practice card matches
         # the mock-card height. The meta column keeps Questions /
@@ -2418,20 +2510,32 @@ def _render_add_lecture_form(
             st.session_state.pop(stale, None)
         st.rerun()
     elif submit_clicked:
+        cleaned_lecture_name = (lecture_name or "").strip()
+        if not cleaned_lecture_name:
+            st.error(ADD_LECTURE_MISSING_TITLE)
+            return
+        if slide_pdf_file is None:
+            st.error(ADD_LECTURE_MISSING_PDF)
+            return
+        popup = st.empty()
+        show_processing_popup(popup, state="processing")
         with st.spinner(ADD_LECTURE_PROCESSING_TOAST):
             result = submit_fn(
                 user_id=user_id,
                 class_id=class_id,
-                lecture_title=lecture_name or "",
+                lecture_title=cleaned_lecture_name,
                 slide_pdf_file=slide_pdf_file,
             )
         if result.get("ok"):
+            show_processing_popup(popup, state="done")
+            sleep(0.75)
             st.toast(ADD_LECTURE_SAVED_READY_TOAST)
             st.session_state[ADD_LECTURE_OPEN_KEY] = False
             for stale in ("p3_add_lecture_name", "p3_add_lecture_pdf"):
                 st.session_state.pop(stale, None)
             st.rerun()
         else:
+            popup.empty()
             error = result.get("error")
             if error == "missing_title":
                 st.error(ADD_LECTURE_MISSING_TITLE)
@@ -2477,6 +2581,7 @@ def _default_layout_renderer(payload: dict[str, Any]) -> None:
             custom_launch_fn=custom_launch_fn,
             switch_page_fn=switch_page_fn,
         )
+        _render_custom_mock_explainer()
 
         with st.container(key="p3_build_mock_card"):
             st.html(

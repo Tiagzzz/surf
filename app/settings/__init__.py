@@ -11,8 +11,8 @@ Three-card layout locked for Surf V1:
   3. **Reset app data** — typed ``DELETE`` confirmation gates the
      destructive call to
      :func:`app.settings.reset_account.reset_local_account_data`. After
-     a confirmed reset the page clears ``st.session_state`` and
-     ``st.switch_page("views/signup.py")``.
+     a confirmed reset the page clears ``st.session_state`` and reruns
+     through the app router so the user lands on Sign Up.
 
 The render function takes the current user dict and the local DB path,
 plus injectable services so tests and the preview sandbox can run with
@@ -640,7 +640,7 @@ def _render_reset_dialog(
             reset_fn()
             st.session_state.clear()
             st.toast(RESET_SUCCESS_TOAST)
-            st.switch_page(SIGNUP_VIEW_PATH)
+            st.rerun()
 
     _dialog()
 

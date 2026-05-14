@@ -2,8 +2,8 @@
 
 This bucket holds the shared helpers that every page can reuse: saved-user
 session checks, the single Anthropic wrapper, grading, question-type taxonomy,
-PDF ingestion, shared page layout/header helpers, and the
-authenticated topbar. Full pages live in `views/` and app buckets such as
+PDF ingestion, shared page layout/header helpers, the upload-processing popup,
+and the authenticated topbar. Full pages live in `views/` and app buckets such as
 `app/my_classes/`, `app/class_/`, `app/mock_take/`, `app/mock_review/`,
 `app/dashboard/`, and `app/settings/`.
 
@@ -20,6 +20,7 @@ authenticated topbar. Full pages live in `views/` and app buckets such as
 | `topbar/` | Fixed authenticated topbar with Surf logo, breadcrumb, Home, and Settings controls. | P2-P7 authenticated pages |
 | `page_layout/` | Shared 880px authenticated page rail with 32px horizontal padding. | P2/P3/P6/P7 headers/cards and aligned page surfaces |
 | `page_header/` | Shared authenticated header: kicker, title, helper text, escaped HTML. | My Classes, Class Hub, Dashboard, Settings |
+| `processing_popup/` | Two-state upload waiting popup with the looped surfer video. | P2 Add Class and P3 Add Lecture |
 
 Cleanup note: the old empty `routing/` and `state_helpers/` scaffold folders were deleted on 2026-05-13 because the running app uses `streamlit_app.py`, `session/`, and page-owned session keys instead. Recreate a narrow helper folder later only if repeated routing/state code appears.
 
@@ -35,9 +36,10 @@ streamlit_app.py
 views/<page>.py
         │
         ├── topbar.render_topbar(...)
-        ├── page_layout.page_rail(...)
-        ├── page_header.render_page_header(...)
-        ├── grading_formula for exact-match and Swiss grade math
+                ├── page_layout.page_rail(...)
+                ├── page_header.render_page_header(...)
+                ├── processing_popup.show_processing_popup(...)
+                ├── grading_formula for exact-match and Swiss grade math
         ├── question_type for stored MCQ type slugs
         └── claude_client.call_claude(..., api_key=saved_key)
 ```
@@ -85,7 +87,9 @@ This bucket-level walkthrough points to the sidecar to read for each code area:
    type display, or type analytics.
 5. Read `grading_formula/grading_formula.md` before touching final-submit,
    Review, or Dashboard grade math.
-6. Read `page_layout/page_layout.md`, `page_header/page_header.md`, and
+6. Read `processing_popup/processing_popup.md` before changing the Add Class or
+   Add Lecture waiting overlay.
+7. Read `page_layout/page_layout.md`, `page_header/page_header.md`, and
    `topbar/topbar.md` before changing authenticated page chrome.
 
 ## Teammate talking points

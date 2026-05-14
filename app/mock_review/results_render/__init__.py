@@ -42,6 +42,22 @@ _RATIONALE_UNAVAILABLE_COPY = "Rationale unavailable."
 _MISSED_LOCKED_COPY = "MISSED"
 _LECTURE_UNAVAILABLE_COPY = "Lecture unavailable."
 _PRACTICE_DISCLAIMER_COPY = "Practice does not count toward class average."
+_DIFFICULTY_EXPLAINER_LABEL = "Understand your difficulty score"
+_DIFFICULTY_EXPLAINER_OPEN_KEY = "p5_difficulty_explainer_open"
+_DIFFICULTY_EXPLAINER_BODY = (
+    "Your difficulty score tells you how hard a question really is, on a scale "
+    "from 1 to 100.\n\n"
+    "Lower numbers are gentler questions that most students get right. Higher "
+    "numbers are the ones that catch people out, even after solid prep. A 20 "
+    "is a warm-up. An 80 is the kind of question that decides grades.\n\n"
+    "Surf builds the score from signals in the question itself, like how "
+    "layered the wording is, how close the wrong answers look to the right one, "
+    "and how much lecture material you need to hold in your head at once. As "
+    "you answer more questions, your own track record feeds into the score too, "
+    "so it gets sharper over time.\n\n"
+    "Think of the number as a heads-up, not a verdict. Nailing a 75 is worth "
+    "celebrating. Missing a 25 is worth a second look before the exam."
+)
 _SWISS_TZ = ZoneInfo("Europe/Zurich")
 _DIFFICULTY_FEATURE_KEYS = (
     "difficulty_word_count",
@@ -173,6 +189,63 @@ def _styles() -> str:
       max-width: 720px !important;
       padding: 28px 34px !important;
       width: 100% !important;
+    }
+    .st-key-p5_difficulty_score_explainer {
+      margin: 0 auto 18px !important;
+      max-width: 880px !important;
+      width: 100% !important;
+    }
+    .st-key-p5_difficulty_score_explainer button,
+    .st-key-p5_difficulty_score_explainer [data-testid="stButton"] button,
+    .st-key-p5_difficulty_score_explainer button * {
+      align-items: center !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: var(--surf-paper4) !important;
+      display: inline-flex !important;
+      font-family: "Fraunces", Georgia, serif !important;
+      font-size: 16px !important;
+      font-style: italic !important;
+      font-weight: 600 !important;
+      height: auto !important;
+      justify-content: flex-start !important;
+      letter-spacing: 0 !important;
+      line-height: 1.25 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      text-align: left !important;
+      text-transform: none !important;
+      transition: color 0.08s ease-out !important;
+      width: auto !important;
+    }
+    .st-key-p5_difficulty_score_explainer button:hover,
+    .st-key-p5_difficulty_score_explainer button:hover * {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--surf-accent) !important;
+      transform: none !important;
+      text-decoration: underline !important;
+      text-underline-offset: 3px !important;
+    }
+    .st-key-p5_difficulty_score_explainer_card {
+      background: var(--surf-paper0);
+      border: 1.5px dashed var(--surf-paper3);
+      border-radius: 4px;
+      box-sizing: border-box;
+      color: var(--surf-paper5);
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 15px;
+      font-style: italic;
+      line-height: 1.5;
+      margin: -4px auto 32px;
+      max-width: 880px;
+      padding: 18px 20px;
+      width: 100%;
+    }
+    .surf-p5-difficulty-explainer-body {
+      margin: 0;
+      white-space: pre-line;
     }
     .surf-p5-summary-grid {
       display: grid;
@@ -522,7 +595,13 @@ def _styles() -> str:
     )
 
 
-def _format_finished_at(value: Any) -> str:
+def format_finished_at(value: Any) -> str:
+    """Format a stored attempt timestamp as Swiss-local `dd MMM YYYY · HH:MM`.
+
+    Naive values are treated as UTC (matches SQLite ``datetime('now')``);
+    tz-aware values keep their offset. Shared by P5 review hero and P3
+    attempt cards so both surfaces show identical Swiss-local time.
+    """
     if value is None:
         return "Date unavailable"
     text = str(value)
@@ -896,6 +975,24 @@ def _render_review_row(raw_row: dict, *, difficulty_score: int | None = None) ->
                 st.html(feedback_markup)
 
 
+def _render_difficulty_score_explainer() -> None:
+    """Render the text-only P5 difficulty-score explanation toggle."""
+    is_open = bool(st.session_state.get(_DIFFICULTY_EXPLAINER_OPEN_KEY, False))
+    with st.container(key="p5_difficulty_score_explainer"):
+        if st.button(
+            _DIFFICULTY_EXPLAINER_LABEL,
+            key="p5_difficulty_score_explainer_action",
+        ):
+            st.session_state[_DIFFICULTY_EXPLAINER_OPEN_KEY] = not is_open
+    if st.session_state.get(_DIFFICULTY_EXPLAINER_OPEN_KEY, False):
+        with st.container(key="p5_difficulty_score_explainer_card"):
+            st.html(
+                '<p class="surf-p5-difficulty-explainer-body">'
+                f"{escape(_DIFFICULTY_EXPLAINER_BODY)}"
+                "</p>"
+            )
+
+
 def _render_actions(*, class_id: int | None) -> None:
     left, right = st.columns(2)
     with left:
@@ -944,7 +1041,7 @@ def render_review_mock_page(
     mock_kind = str(summary.get("mock_kind") or "mock").lower()
     is_practice = mock_kind == "practice"
     title = "Practice Review" if is_practice else "Mock Review"
-    finished_at = _format_finished_at(summary.get("finished_at"))
+    finished_at = format_finished_at(summary.get("finished_at"))
     threshold = get_class_pass_threshold(class_id) if class_id is not None else None
     skipped_count = sum(1 for row in review_rows if bool(row.get("was_skipped")))
 
@@ -964,6 +1061,7 @@ def render_review_mock_page(
                     skipped_count=skipped_count,
                 )
             )
+        _render_difficulty_score_explainer()
         difficulty_score_map = _difficulty_score_map_for_review(
             class_id,
             review_rows,
