@@ -1,0 +1,26 @@
+# Surf — Python dependencies
+# Pinned with `>=` for now; run `pip freeze > requirements.txt` after first
+# successful install to lock exact versions for reproducibility on the grader's
+# machine before the 2026-05-14 Canvas submission.
+
+# UI
+streamlit>=1.36          # required for st.navigation() multi-page API
+
+# LLM
+anthropic>=0.40          # Claude API client
+python-dotenv>=1.0       # claude_client.py loads ANTHROPIC_API_KEY from .env
+
+# PDF ingestion
+pdfplumber>=0.11         # native PDF text + table extraction
+pdf2image>=1.17          # OCR fallback in pdf_to_md_v3.py — needs system `poppler`
+pytesseract>=0.3.10      # OCR fallback in pdf_to_md_v3.py — needs system `tesseract`
+
+# Data
+pandas>=2.0
+
+# Charts (P6 Dashboard)
+plotly>=5.20             # line + bar + radar
+
+# ML (6-criteria difficulty model)
+scikit-learn>=1.4        # linear regression baseline per architecture §3.6
+numpy>=1.26

@@ -1,0 +1,12 @@
+[server]
+maxUploadSize = 50
+
+[theme]
+# Surf V1 design system (Phase 1 Lock §5.1).
+# Replaces the old default blue/grey theme so Streamlit's native widgets
+# inherit Surf's Paper / Paper5 / Accent palette out of the box.
+primaryColor = "#C8361D"            # Accent/Vibrant — primary focus / slider fill
+backgroundColor = "#FDF9F2"         # Paper
+secondaryBackgroundColor = "#F5EFE4" # Paper0 — sidebar, secondary surfaces
+textColor = "#28251F"               # Paper5 — body ink
+font = "serif"

@@ -1,0 +1,21 @@
+# Surf — project configuration.
+#
+# Ruff config only for now (lint + format). No build system: Surf is run
+# directly via `streamlit run streamlit_app.py`, not installed as a package.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "assets",
+    ".streamlit",
+]
+
+[tool.ruff.lint]
+# E = pycodestyle errors · F = pyflakes · I = isort
+# Conservative ruleset for the team lint standard.
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-export scaffold files can look like unused imports.
+"**/__init__.py" = ["F401"]

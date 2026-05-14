@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Surf-specific local user data
+.surf/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+secrets.*
+secret.*
+credentials.*
+*.pem
+*API_KEY*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local planning handoff snapshots (not committed)
+docs/handoff_*/
+
+# HSG course material (other classes' exam catalogues used as
+# NotebookLM analysis input — not Surf code, not committed)
+OLD_EXAM_CATALOG/
+
+# Local-only project planning, agent instructions, and handoff/control files
+AGENTS.md
+CLAUDE.md
+SAFE_CLEANUP_AND_CONTINUATION_PLAN.md
+
+# Keep internal documentation local while allowing the team learning docs to be
+# tracked for the handoff repo.
+docs/*
+!docs/team/
+!docs/team/**
+docs/handoffs/
+docs/implementation_plan/
+docs/registers/
+docs/archive/
+
+# Local-only generated/support packages for final handoff preparation.
+teacher_package/
+handoff_artifacts/
+
+# Local-only development artifacts excluded from the teacher/public handoff.
+# Tests and Streamlit preview sandboxes stay local-only except the minimal
+# smoke harness that lets the GitHub handoff clone run `pytest -q`.
+tests/*
+!tests/test_smoke.py
+previews/
+PHASE-4-EXAMPLES/
+
+# Local agent/worktree artifacts and scratchpads.
+.claude/
+.tmp/
+Structure/
+
+# Canvas/course downloads are local reference material, not repo source
+canvas_downloads/
+
+# Local GSD planning state; phase scratchwork stays local but the
+# lessons/ subfolder (handoff docs, pattern libraries) is tracked so
+# every machine can read what we learned from prior phases.
+/.planning/*
+!/.planning/lessons/
+
+# SQLite sidecar/runtime files
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-wal
+*.db-shm
+*.db-journal
