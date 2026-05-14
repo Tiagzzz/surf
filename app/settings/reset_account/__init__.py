@@ -4,6 +4,29 @@ The reset page requires the user to type ``DELETE`` before calling this helper.
 This module performs only the scoped SQLite deletion. It does not create a
 plaintext-key backup file.
 """
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — P7 LOCAL ACCOUNT RESET
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Wipes the user's entire local Surf account in one SQLite transaction.
+# The renderer requires the user to type the exact word `DELETE` before
+# this helper is called. There is no backup file — every row tied to the
+# account is removed and the saved Anthropic API key is gone.
+#
+# Important code pieces:
+# - `reset_local_account_data`: the one public function. Runs `DELETE FROM
+#   users` inside `BEGIN`/`COMMIT`; on any exception we `rollback` and
+#   re-raise so the renderer can show an honest failure toast.
+# - Schema foreign-key cascades: removing the `users` row removes
+#   classes, lectures, generated questions, attempts, and answers
+#   automatically.
+# - `connection` / `db_file`: injectable so tests and previews can target
+#   a temporary SQLite file.
+#
+# App connection (privacy):
+# This is the only place the locally stored API key is intentionally
+# erased. After the call, the renderer also clears `st.session_state` so
+# the next page load sends the user back to Sign Up.
 # Deletes local account rows through the app's SQLite connection boundary.
 from __future__ import annotations
 

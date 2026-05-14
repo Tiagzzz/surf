@@ -8,6 +8,22 @@ cards and option/rationale rows.
 # Paints saved P5 results without recalculating or rewriting attempts.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Streamlit plus a handful of stdlib helpers, the shared topbar, the
+# read-only attempt queries, the Phase 7 personal-difficulty scorer, and
+# the pure helpers from `rationale_display`. Everything that could mutate
+# the database is excluded — P5 is strictly a read-only review surface.
+#
+# Important code pieces:
+# - `zoneinfo.ZoneInfo`: Python's standard timezone helper, used so the
+#   "finished at" timestamp displays in Swiss local time regardless of
+#   how it was stored.
+# - `score_questions`: imported from `app.ml.personal_difficulty` and
+#   called fresh on every render. The resulting difficulty number is
+#   never written back to SQLite.
 import base64
 import json
 from datetime import datetime, timezone
@@ -37,11 +53,41 @@ from app.mock_review.rationale_display import (
 
 __all__ = ["render_review_mock_page"]
 
+# --------------------------------------------------------------------------- #
+# LOCKED COPY AND DIFFICULTY-EXPLAINER CONTENT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Fixed strings the review page falls back on when an attempt row is
+# missing a label, plus the multi-paragraph explainer the user sees when
+# they expand "Understand your difficulty score". Keeping the copy as
+# module constants lets the test suite assert the exact wording.
+#
+# Important code pieces:
+# - `_DIFFICULTY_EXPLAINER_BODY`: the longer body shown inside the
+#   collapsible explainer card.
+# - `_DIFFICULTY_FEATURE_KEYS`: the difficulty_* columns the renderer
+#   forwards into the scoring view passed to `score_questions(...)`.
 _TYPE_UNAVAILABLE_COPY = "Type unavailable"
 _RATIONALE_UNAVAILABLE_COPY = "Rationale unavailable."
 _MISSED_LOCKED_COPY = "MISSED"
 _LECTURE_UNAVAILABLE_COPY = "Lecture unavailable."
 _PRACTICE_DISCLAIMER_COPY = "Practice does not count toward class average."
+_DIFFICULTY_EXPLAINER_LABEL = "Understand your difficulty score"
+_DIFFICULTY_EXPLAINER_OPEN_KEY = "p5_difficulty_explainer_open"
+_DIFFICULTY_EXPLAINER_BODY = (
+    "Your difficulty score tells you how hard a question really is, on a scale "
+    "from 1 to 100.\n\n"
+    "Lower numbers are gentler questions that most students get right. Higher "
+    "numbers are the ones that catch people out, even after solid prep. A 20 "
+    "is a warm-up. An 80 is the kind of question that decides grades.\n\n"
+    "Surf builds the score from signals in the question itself, like how "
+    "layered the wording is, how close the wrong answers look to the right one, "
+    "and how much lecture material you need to hold in your head at once. As "
+    "you answer more questions, your own track record feeds into the score too, "
+    "so it gets sharper over time.\n\n"
+    "Think of the number as a heads-up, not a verdict. Nailing a 75 is worth "
+    "celebrating. Missing a 25 is worth a second look before the exam."
+)
 _SWISS_TZ = ZoneInfo("Europe/Zurich")
 _DIFFICULTY_FEATURE_KEYS = (
     "difficulty_word_count",
@@ -97,6 +143,26 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# PAGE CSS BUILDER — `_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one big block of scoped CSS as a Python string. Injected via
+# `st.markdown(_styles(), unsafe_allow_html=True)` rather than `st.html(...)`
+# because large style payloads have been observed to silently drop when
+# passed to `st.html`. The CSS owns: hero band, summary card grid, the
+# Phase 7 personal-difficulty flag silhouette pinned to each card's
+# top-right edge (V-notch via `clip-path`, tier color via the
+# `--flag-color` custom property), the per-option correct/wrong/missed
+# styling, the rationale feedback row, and the two action buttons.
+#
+# Important code pieces:
+# - `.surf-personal-difficulty-flag` and its `::before` / `::after`
+#   pseudo-elements: paint the colored flag and a 4px offset shadow
+#   silhouette without `filter: drop-shadow` (which has been unreliable
+#   inside Streamlit's wrapper hierarchy).
+# - `.surf-personal-difficulty-flag--ok` / `--warn` / `--risk`: tier
+#   modifier classes corresponding to the low/medium/high score bands.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -173,6 +239,63 @@ def _styles() -> str:
       max-width: 720px !important;
       padding: 28px 34px !important;
       width: 100% !important;
+    }
+    .st-key-p5_difficulty_score_explainer {
+      margin: 0 auto 18px !important;
+      max-width: 880px !important;
+      width: 100% !important;
+    }
+    .st-key-p5_difficulty_score_explainer button,
+    .st-key-p5_difficulty_score_explainer [data-testid="stButton"] button,
+    .st-key-p5_difficulty_score_explainer button * {
+      align-items: center !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: var(--surf-paper4) !important;
+      display: inline-flex !important;
+      font-family: "Fraunces", Georgia, serif !important;
+      font-size: 16px !important;
+      font-style: italic !important;
+      font-weight: 600 !important;
+      height: auto !important;
+      justify-content: flex-start !important;
+      letter-spacing: 0 !important;
+      line-height: 1.25 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      text-align: left !important;
+      text-transform: none !important;
+      transition: color 0.08s ease-out !important;
+      width: auto !important;
+    }
+    .st-key-p5_difficulty_score_explainer button:hover,
+    .st-key-p5_difficulty_score_explainer button:hover * {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--surf-accent) !important;
+      transform: none !important;
+      text-decoration: underline !important;
+      text-underline-offset: 3px !important;
+    }
+    .st-key-p5_difficulty_score_explainer_card {
+      background: var(--surf-paper0);
+      border: 1.5px dashed var(--surf-paper3);
+      border-radius: 4px;
+      box-sizing: border-box;
+      color: var(--surf-paper5);
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 15px;
+      font-style: italic;
+      line-height: 1.5;
+      margin: -4px auto 32px;
+      max-width: 880px;
+      padding: 18px 20px;
+      width: 100%;
+    }
+    .surf-p5-difficulty-explainer-body {
+      margin: 0;
+      white-space: pre-line;
     }
     .surf-p5-summary-grid {
       display: grid;
@@ -522,7 +645,13 @@ def _styles() -> str:
     )
 
 
-def _format_finished_at(value: Any) -> str:
+def format_finished_at(value: Any) -> str:
+    """Format a stored attempt timestamp as Swiss-local `dd MMM YYYY · HH:MM`.
+
+    Naive values are treated as UTC (matches SQLite ``datetime('now')``);
+    tz-aware values keep their offset. Shared by P5 review hero and P3
+    attempt cards so both surfaces show identical Swiss-local time.
+    """
     if value is None:
         return "Date unavailable"
     text = str(value)
@@ -896,6 +1025,24 @@ def _render_review_row(raw_row: dict, *, difficulty_score: int | None = None) ->
                 st.html(feedback_markup)
 
 
+def _render_difficulty_score_explainer() -> None:
+    """Render the text-only P5 difficulty-score explanation toggle."""
+    is_open = bool(st.session_state.get(_DIFFICULTY_EXPLAINER_OPEN_KEY, False))
+    with st.container(key="p5_difficulty_score_explainer"):
+        if st.button(
+            _DIFFICULTY_EXPLAINER_LABEL,
+            key="p5_difficulty_score_explainer_action",
+        ):
+            st.session_state[_DIFFICULTY_EXPLAINER_OPEN_KEY] = not is_open
+    if st.session_state.get(_DIFFICULTY_EXPLAINER_OPEN_KEY, False):
+        with st.container(key="p5_difficulty_score_explainer_card"):
+            st.html(
+                '<p class="surf-p5-difficulty-explainer-body">'
+                f"{escape(_DIFFICULTY_EXPLAINER_BODY)}"
+                "</p>"
+            )
+
+
 def _render_actions(*, class_id: int | None) -> None:
     left, right = st.columns(2)
     with left:
@@ -914,6 +1061,17 @@ def _render_actions(*, class_id: int | None) -> None:
                 st.switch_page("views/dashboard.py")
 
 
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `render_review_mock_page`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one function `views/review_mock_exam.py` calls. It loads the saved
+# attempt summary plus the per-question review rows, recovers gracefully
+# when either is missing, renders the shared topbar with the class
+# breadcrumb segment, draws the hero band and four-stat summary card, and
+# then loops every review row through `_render_review_row` with the
+# freshly-computed difficulty flag score. No write happens here — the
+# function is strictly read-only.
 def render_review_mock_page(
     *,
     user: dict,
@@ -944,7 +1102,7 @@ def render_review_mock_page(
     mock_kind = str(summary.get("mock_kind") or "mock").lower()
     is_practice = mock_kind == "practice"
     title = "Practice Review" if is_practice else "Mock Review"
-    finished_at = _format_finished_at(summary.get("finished_at"))
+    finished_at = format_finished_at(summary.get("finished_at"))
     threshold = get_class_pass_threshold(class_id) if class_id is not None else None
     skipped_count = sum(1 for row in review_rows if bool(row.get("was_skipped")))
 
@@ -964,6 +1122,7 @@ def render_review_mock_page(
                     skipped_count=skipped_count,
                 )
             )
+        _render_difficulty_score_explainer()
         difficulty_score_map = _difficulty_score_map_for_review(
             class_id,
             review_rows,

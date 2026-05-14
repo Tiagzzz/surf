@@ -7,6 +7,24 @@ write via ``app.db.queries_attempts.finalize_attempt``.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS, KIND LABEL, AND SESSION-STATE KEYS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# When a student clicks `TAKE MOCK >`, this module "freezes" the picked
+# lectures into a small bundle in `st.session_state` so the P4 take-mock
+# page can render the same questions even if the user navigates away and
+# back. No DB row is created here — the final submit transaction on P4
+# owns the all-or-nothing DB write.
+#
+# Important code pieces:
+# - `MOCK_KIND`: discriminator stored in session state so P4/P5 know if
+#   the attempt is a mock or a practice round.
+# - `P4_LAUNCH_STATE_KEY` / `FROZEN_QUESTION_IDS_KEY` /
+#   `QUESTION_PAYLOADS_KEY` / `MOCK_KIND_KEY` / `SELECTED_LECTURE_IDS_KEY`:
+#   the locked Streamlit session-state keys shared with P4 and P5.
+# - `TARGET_PER_LECTURE = 5`: how many ready questions Surf aims to pull
+#   from each picked lecture; honest shorter-mock copy fires below that.
 import json
 from collections.abc import Iterable, Mapping, MutableMapping
 from typing import Any
@@ -72,6 +90,15 @@ def _json_list(value: object, *, fallback: list[Any] | None = None) -> list[Any]
     raise ValueError(f"expected JSON list, got {value!r}")
 
 
+# --------------------------------------------------------------------------- #
+# BUILD_QUESTION_PAYLOAD — PROJECT A DB ROW INTO A SAFE FRONTEND PAYLOAD
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Reads one question row from SQLite and returns a smaller dict that is
+# safe to drop into `st.session_state` for P4/P5. Correct answers,
+# rationales, and difficulty-looking columns are intentionally dropped
+# here — they are pulled back on review/submit so the student cannot see
+# them via the browser dev tools during a live attempt.
 def build_question_payload(
     question_row: Mapping[str, Any],
     *,
@@ -124,6 +151,23 @@ def _write_launch_state(
     session_state[SELECTED_LECTURE_IDS_KEY] = list(state["selected_lecture_ids"])
 
 
+# --------------------------------------------------------------------------- #
+# LAUNCH_MOCK_STANDARD — FREEZE THE PICKED LECTURES INTO SESSION STATE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Called by the P3 Class Hub when the student clicks `TAKE MOCK >`. It
+# pulls up to `target_per_lecture` ready questions per selected lecture,
+# wraps each in a safe payload, and writes the locked session-state keys
+# that P4 reads. Honest shorter-mock copy is included when fewer ready
+# questions exist than the target.
+#
+# Important code pieces:
+# - `questions_for_lecture_fn`: injection seam; tests pass a fake, the
+#   real call hits `list_ready_questions_for_lecture` against SQLite.
+# - `_unique_sorted_positive_ints(...)`: validates and de-duplicates the
+#   picked lecture ids.
+# - `target_per_lecture * len(selected)`: the desired total — the
+#   shorter-mock copy fires when actual ready questions are fewer.
 def launch_mock_standard(
     *,
     class_id: int,

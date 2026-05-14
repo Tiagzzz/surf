@@ -13,6 +13,23 @@ This module is intentionally separate from ``mock_standard_launch`` and
 # Custom Mock launch — writes P4 session keys, never touches the DB.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND LOCKED COPY CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module powers the red `CUSTOM MOCK >` button on the Class Hub. It
+# reuses the same session-state keys as the standard mock launch (so P4
+# does not care which entry point started the attempt), but uses the
+# ranking helper from `custom_mock_selection` to pick the highest-risk
+# questions instead of letting the student pick lectures.
+#
+# Important code pieces:
+# - `MutableMapping[str, Any]`: a generic type hint that lets tests pass
+#   a plain `dict` while production passes `st.session_state`.
+# - `CUSTOM_MOCK_HONEST_SHORT_COPY_TEMPLATE`: the partial-mock message
+#   shown when fewer than 10 ready questions exist.
+# - `CUSTOM_MOCK_EMPTY_COPY`: the empty-state copy when no ready
+#   questions exist anywhere in the class.
 from collections.abc import MutableMapping
 from typing import Any
 
@@ -71,6 +88,15 @@ def _validate_class_id(class_id: int) -> None:
         raise ValueError("class_id must be a positive integer")
 
 
+# --------------------------------------------------------------------------- #
+# LAUNCH_MOCK_CUSTOM — RANK + FREEZE THE TOP-N HARDEST QUESTIONS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Calls the ranking helper to get up to 10 ready questions ordered by
+# personal difficulty, projects them through the standard
+# `build_question_payload(...)`, and writes the same P4 session-state
+# keys as the standard mock launch. Returns a dict the renderer uses to
+# show success/empty/partial toasts.
 def launch_mock_custom(
     *,
     class_id: int,

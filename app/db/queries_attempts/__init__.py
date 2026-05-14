@@ -28,6 +28,20 @@ Pandas is deliberately NOT imported here. Helpers return
 # Persist attempts only at final submit and read them back as plain dicts.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module owns the `attempts` and `attempt_answers` tables. It uses
+# `json` because `selected_indices` is stored as JSON text per the V1 lock,
+# `sqlite3` directly to take manual control of one explicit transaction, and
+# the shared grading helpers to compute correctness and the Swiss grade.
+#
+# Important code pieces:
+# - `compute_swiss_grade`: maps `(correct, total, pass_threshold_pct)` to a
+#   Swiss grade in the 1.00–6.00 range.
+# - `is_exact_match`: True only when the user's selection equals the stored
+#   correct set; skipped answers grade as wrong by contract.
 import json
 import sqlite3
 from typing import Any, Iterable
@@ -73,6 +87,17 @@ def _all_unique(seq: Iterable[int]) -> bool:
     return len(set(items)) == len(items)
 
 
+# --------------------------------------------------------------------------- #
+# PRE-WRITE VALIDATION FOR FINAL SUBMIT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Before any attempt row touches SQLite, this helper checks the shape of the
+# user's submitted answers. Every contract break raises `ValueError` with a
+# specific message so the page can show what went wrong.
+#
+# Key detail:
+# - Selected indices must be `int` (booleans explicitly excluded), unique,
+#   and inside `0..3` since every MCQ has exactly four options.
 def _validate_finalize_inputs(
     *,
     class_id: int,
@@ -117,6 +142,34 @@ def _validate_finalize_inputs(
 # finalize_attempt — atomic write
 # ---------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------- #
+# FINAL SUBMIT — `finalize_attempt`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one moment Surf actually persists an attempt. Everything before this
+# call lives only in Streamlit session state. On final submit, this function
+# runs a single SQLite transaction that:
+#   1. INSERTs one row into `attempts`,
+#   2. INSERTs one row into `attempt_answers` per question (in their
+#      original 1-based `position`),
+#   3. UPDATEs the attempt summary with totals, percent, and Swiss grade.
+# If any step fails, the whole transaction rolls back so the database can
+# never contain a half-written attempt.
+#
+# Important code pieces:
+# - `raw_conn.isolation_level = None`: switches SQLite into manual
+#   transaction mode so we can issue explicit `BEGIN` / `COMMIT` /
+#   `ROLLBACK` statements.
+# - `is_exact_match(...)`: grades each answer; skipped questions store an
+#   empty list and grade as wrong.
+# - `compute_swiss_grade(...)`: turns correct/total + the class threshold
+#   into the Swiss grade saved alongside the percent.
+# - The `try` / `except` / `finally` block restores the prior isolation
+#   level no matter what.
+#
+# App connection:
+# P4 calls this exactly once when the user presses the final submit. P5
+# review and P6 dashboard then read what this function persisted.
 def finalize_attempt(
     *,
     class_id: int,
@@ -281,6 +334,31 @@ def _underlying_sqlite(db: Any):
 # Read helpers (P5 review + P6 dashboard + Study Next)
 # ---------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------- #
+# READ HELPERS — P5 REVIEW, P6 DASHBOARD, STUDY NEXT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers read the persisted attempts back for the review page, the
+# dashboard, Study Next ranking, and the optional Phase 7 personal
+# difficulty inputs.
+#
+# Important code pieces:
+# - `get_attempt_summary(...)`: one-row read for the P5 header. The optional
+#   `class_id` lets a caller assert the attempt belongs to the expected
+#   class.
+# - `get_attempt_review_rows(...)`: answer rows joined with question text,
+#   options JSON, correct indices, type, and LO context, returned in
+#   `position ASC` order so P5 shows the exact sequence the user saw.
+# - `list_completed_attempts_for_class(...)`: lists finished attempts newest
+#   first; supports an optional `mock_kind` filter and `limit`.
+# - `list_personal_difficulty_examples_for_class(...)`: finished
+#   attempt-answer rows joined with question content for the Phase 7
+#   personal-difficulty model. The scoring core lives elsewhere; this
+#   helper only returns evidence rows.
+# - `latest_answer_per_question_for_class(...)`: collapses all finished
+#   answers down to one latest row per generated question. Study Next uses
+#   this to rank weak topics, counting practice and mock together (per the
+#   V1 lock).
 def get_attempt_summary(
     attempt_id: int,
     class_id: int | None = None,

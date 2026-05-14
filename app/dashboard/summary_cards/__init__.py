@@ -6,6 +6,13 @@ DB, read Streamlit session state, or invent dashboard values.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `dataclass` builds the small `SummaryCard` view model. `escape` keeps any
+# dynamic card label or value from injecting HTML when rendered into custom
+# markup. `Streamlit` provides the columns and HTML injector.
 from dataclasses import dataclass
 from html import escape
 from typing import Any, Mapping
@@ -60,6 +67,26 @@ def _mock_basis_copy(mock_count: int) -> str:
 # The top band mixes two approved aggregate sources: mock-only grade metrics and
 # latest-answer coverage counts. This builder combines them without querying the
 # database or inventing missing values.
+# --------------------------------------------------------------------------- #
+# SUMMARY CARD BUILDER AND RENDERER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `build_summary_cards` assembles the four locked metric cards from the
+# already-validated dashboard payload. `render_summary` places those cards
+# inside Streamlit columns and returns the view models for tests.
+#
+# Important code pieces:
+# - "Questions answered": dark card combining the latest-correct and
+#   latest-wrong/skipped buckets out of `coverage_summary`.
+# - "Completed mocks": total mock count (mock_kind == 'mock' only).
+# - "Last 4 average": average Swiss grade over the last 4 completed mocks,
+#   with `Based on N of 4 mocks` copy when N < 4.
+# - "Last mock grade": Swiss grade of the most recent completed mock.
+#
+# Key detail:
+# - Practice attempts are intentionally excluded from class average and
+#   last grade (V1 lock). They still affect Study Next and weakness stats
+#   elsewhere.
 def build_summary_cards(
     *,
     mock_metrics: Mapping[str, Any] | None,

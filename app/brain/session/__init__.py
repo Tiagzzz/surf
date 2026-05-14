@@ -13,6 +13,15 @@ to display user state must format only the ``username`` field.
 from __future__ import annotations
 
 
+# --------------------------------------------------------------------------- #
+# IS_AUTHENTICATED — DOES A SIGNED-UP USER HAVE AN API KEY ON FILE?
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns True only when the local SQLite has a user row AND that row has
+# a non-blank Anthropic key. The routing layer uses this to gate every
+# authenticated page (P2–P7) and to keep P1 (signup) reachable when no
+# user exists yet. The DB query helper is imported lazily inside the
+# function so `import app.brain.session` is free of DB side effects.
 def is_authenticated() -> bool:
     """True iff a saved user row exists with a non-blank Anthropic key.
 
@@ -25,6 +34,13 @@ def is_authenticated() -> bool:
     return has_saved_user_with_key()
 
 
+# --------------------------------------------------------------------------- #
+# GET_SAVED_USER — READ THE ACTIVE USER ROW FOR ROUTING / UI
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns the active user row as a plain dict, or `None` when nobody has
+# signed up yet. Callers may read fields like `username`, but must not
+# log or persist the `anthropic_api_key` field — that is a privacy lock.
 def get_saved_user() -> dict | None:
     """Return the saved user row as a plain dict (or ``None``) for routing/UI.
 
@@ -36,6 +52,13 @@ def get_saved_user() -> dict | None:
     return get_active_user()
 
 
+# --------------------------------------------------------------------------- #
+# HAS_SAVED_USER — SIGNUP EXISTENCE WITHOUT KEY STATE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Like `is_authenticated` but ignores whether the key field is filled.
+# Useful for UI branches that need to ask "did anyone ever sign up
+# here?" without leaking whether the key is set.
 def has_saved_user() -> bool:
     """True iff a saved user row exists, regardless of key state.
 

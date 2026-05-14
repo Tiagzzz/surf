@@ -41,6 +41,13 @@ Dashboard formulas:
 # Compute dashboard metrics from submitted attempts without rendering charts.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module turns stored attempt rows into the numbers the P6 dashboard
+# needs. It imports the shared Swiss-grade formula so per-lecture chart
+# points use the same grading rule as the original attempt.
 from typing import Any
 
 from app.brain.grading_formula import compute_swiss_grade

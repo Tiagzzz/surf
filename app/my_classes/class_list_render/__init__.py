@@ -29,16 +29,48 @@ remain centralized here.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — P2 MY CLASSES PAGE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This is the entire P2 ("My Classes") page wrapped in one file. It draws
+# the shared topbar at the top, the page title and helper, the inline
+# "ADD CLASS" form, a list of class cards (one per saved class), and the
+# destructive `st.dialog` used to confirm a class delete. Every back-end
+# service it depends on is injected so tests and the preview sandbox can
+# run with fakes.
+#
+# Important code pieces:
+# - `build_class_card_view_models`: turns raw class rows + stats dicts
+#   into the locked card payload the renderer reads (never demo data).
+# - `submit_add_class_form`: thin wrapper that blocks when the required
+#   factsheet is missing, then delegates to `create_class_from_factsheet`.
+# - `handle_open_class`: stores the selected class id and switches page
+#   to the class hub view.
+# - `_default_list_class_stats`: wires real per-class metrics (lectures,
+#   questions, coverage, last grade, last-4 mock average) using DB query
+#   helpers; pandas is intentionally not imported here.
+# - `_styles`: returns the page-scoped CSS via `st.markdown` (not
+#   `st.html`) per the proven Surf P3 pattern.
+# - `render_my_classes_page`: the public function called by the view.
+#
+# App connection:
+# This page is the user's home after sign-in. The shared topbar is shown.
+# Class name and grade-4 threshold are setup-only here in V1 (editing is
+# deferred). Deleting a class uses a simple confirm dialog and cascades
+# through SQLite foreign keys.
 import base64
 from functools import lru_cache
 from html import escape
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Iterable, Mapping
 
 import streamlit as st
 
 from app.brain.page_header import render_page_header
 from app.brain.page_layout import page_rail
+from app.brain.processing_popup import show_processing_popup
 from app.brain.topbar import render_topbar
 from app.db.queries_classes import list_classes_for_user
 from app.db.queries_dashboard import (
@@ -425,6 +457,24 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# PAGE-SCOPED CSS — `_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one large `<style>...</style>` block that paints the P2 page in
+# Surf colors and typography. Injected with `st.markdown(..., unsafe_allow_html=True)`
+# (the proven Surf P3 pattern) — a large CSS block injected with
+# `st.html` can silently no-op in Streamlit.
+#
+# The CSS is scoped to `.st-key-p2_my_classes_page`, plus prefix selectors
+# for per-card keys (`p2_class_card_<id>`, `delete_class_<id>`,
+# `open_class_<id>`) and the destructive delete dialog's keys
+# (`p2_delete_keep`, `p2_delete_confirm`), which render in a Streamlit
+# portal outside the page container.
+#
+# Why a Python `f"""..."""` string instead of a `.css` file:
+# CSS depends on runtime values (the inline font data URIs and the
+# dropbox icon data URI), so the stylesheet must be built in Python.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -1042,6 +1092,22 @@ def _styles() -> str:
     )
 
 
+# --------------------------------------------------------------------------- #
+# STREAMLIT RENDERERS — CARDS, DIALOG, ADD-CLASS FORM, PAGE LAYOUT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers compose the visible parts of the page. `_render_class_card`
+# draws one class card (title, stats, average score, action buttons).
+# `_render_delete_dialog` draws the destructive confirm dialog.
+# `_render_add_class_form` is the inline "ADD CLASS" form, including the
+# required factsheet drop zone.
+# `_default_layout_renderer` glues the topbar, header, form, cards, and
+# pending-delete dialog together into the page.
+#
+# Key detail:
+# - The page stores the class id of a pending delete under
+#   `DELETE_PENDING_KEY` and pops it before opening the modal so a stray
+#   rerun cannot re-open a dialog the user already dismissed.
 def _render_class_card(view_model: dict[str, Any], *, switch_page_fn) -> None:
     class_id = view_model["class_id"]
     class_name = view_model["class_name"]
@@ -1252,6 +1318,8 @@ def _render_add_class_form(
         if factsheet_file is None:
             st.error(MISSING_FACTSHEET_ERROR)
             return
+        popup = st.empty()
+        show_processing_popup(popup, state="processing")
         with st.spinner(PROCESSING_TOAST):
             result = submit_fn(
                 user_id=user_id,
@@ -1260,6 +1328,8 @@ def _render_add_class_form(
                 factsheet_file=factsheet_file,
             )
         if result.get("ok"):
+            show_processing_popup(popup, state="done")
+            sleep(0.75)
             st.toast(SAVE_SUCCESS_TOAST)
             st.session_state[ADD_CLASS_OPEN_KEY] = False
             for stale in (
@@ -1270,10 +1340,13 @@ def _render_add_class_form(
                 st.session_state.pop(stale, None)
             st.rerun()
         elif result.get("error") == "missing_factsheet":
+            popup.empty()
             st.error(MISSING_FACTSHEET_ERROR)
         elif result.get("error") == "missing_api_key":
+            popup.empty()
             st.error(MISSING_API_KEY_ERROR)
         else:
+            popup.empty()
             st.toast(f"{PROCESS_FAIL_TITLE} — {PROCESS_FAIL_BODY}")
 
 

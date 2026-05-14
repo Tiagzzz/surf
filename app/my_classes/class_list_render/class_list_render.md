@@ -192,6 +192,14 @@ The renderer never inserts class rows directly — it always goes through
 `submit_add_class_form` → `create_class_from_factsheet`, which is the only
 path that touches the saved Anthropic key.
 
+When `CREATE CLASS` is clicked with valid visible inputs, the renderer shows
+the shared `processing_popup` in its `processing` state while the factsheet is
+extracted and cleaned. On success, the same placeholder switches to the `done`
+state briefly before `st.rerun()` refreshes the page. On failure, the popup is
+cleared and the existing friendly error copy is shown. This is a visual waiting
+state only; it does not make class creation asynchronous and does not change the
+no-partial-row guarantee.
+
 ### `_default_list_class_stats`
 
 Production stats provider for the P2 cards. Walks every class owned by
@@ -297,6 +305,9 @@ The Add Class visual surface keeps the P2 data flow unchanged:
 - `_render_add_class_form` uses one keyed dashed container, `p2_add_class_form_card`, directly around the form. The previous nested `st.container(border=True)` wrapper was removed so the form no longer draws an inner non-dashed card line.
 - The factsheet upload is wrapped in `p2_factsheet_dropbox`. It still uses the real `st.file_uploader` with key `p2_add_class_factsheet`, but the native Streamlit dropzone is now the full dashed Dropbox visual surface. The decorative overlay shows a file icon, `DROPBOX`, `UPLOAD YOUR FACTSHEET`, and a selected-file `READY: <filename>` line after Streamlit has a file.
 - Streamlit's native browse/upload button stays mounted for click/tap users but is stretched invisibly over the full dashed zone. That makes the real uploader and the visible Dropbox surface the same size, removes the small stamped button overlap, and avoids the thin non-dashed line inside the dashed upload area.
+- Successful factsheet submissions now show the shared two-state surfer popup:
+  processing while the file is read and cleaned, then done briefly before the
+  automatic rerun.
 
 ### Streamlit uploader constraint
 

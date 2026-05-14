@@ -8,6 +8,15 @@ only.
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Demo seeding writes a complete fake-class graph into a local SQLite
+# database. It uses `json` to encode the factsheet payload, `shutil` to back
+# up any pre-existing live DB before touching it, and the connection module
+# so it can resolve the live DB path and open the connection the same way
+# the rest of the app does.
 import json
 import shutil
 from datetime import datetime, timedelta, timezone
@@ -15,6 +24,23 @@ from pathlib import Path
 
 import app.db.connection as conn_mod
 from app.brain.grading_formula import compute_swiss_grade
+
+# --------------------------------------------------------------------------- #
+# DEMO CONSTANTS — STABLE LABELS USED TO IDENTIFY THE SEED GRAPH
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These constants name the demo class, its factsheet marker key, the
+# placeholder API key, the lecture titles, and the canonical question-type
+# slugs the seeded MCQs cycle through.
+#
+# Important code pieces:
+# - `DEMO_FACTSHEET_MARKER`: a key inside `factsheet_json` that proves a
+#   class row was produced by this seeder. The CLI refuses to delete or
+#   replace any `Surf`-named class that lacks this marker.
+# - `DEMO_PLACEHOLDER_KEY`: a clearly-fake Anthropic API key used in the
+#   seeded user row so demo seeding never leaks a real saved key.
+# - `USER_KEY_COLUMN`: the saved-key column name, built from two string
+#   pieces so the literal column name does not appear in code search.
 
 DEMO_CLASS_NAME = "Surf"
 DEMO_FACTSHEET_MARKER = "surf_demo"
@@ -42,6 +68,15 @@ USER_KEY_COLUMN = "an" + "thropic_api_key"
 __all__ = ["seed_surf_demo_class"]
 
 
+# --------------------------------------------------------------------------- #
+# INTERNAL SEED HELPERS — DB SAFETY, USER ENSURE, GRAPH BUILDERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These private helpers handle one concern each: row-to-dict conversion, DB
+# path resolution, factsheet marker detection, optional live-DB backup,
+# making sure a user row exists, finding any existing `Surf` classes, then
+# building the demo class, its lectures/LOs/slide pages/questions, and the
+# completed attempts that drive dashboard charts.
 def _row_to_dict(cur):
     row = cur.fetchone()
     if row is None:
@@ -308,6 +343,20 @@ def _count_graph(conn, class_id: int) -> dict[str, int]:
     }
 
 
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `seed_surf_demo_class`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The function the CLI calls. It optionally backs up the live DB, ensures a
+# user row, refuses to touch any unmarked `Surf` class, then either reports
+# an existing marked demo graph or wipes the marked graph and rebuilds it
+# (with `replace=True`). Three completed attempts (two mocks plus one
+# practice) are seeded so dashboard charts have real points to plot.
+#
+# Key detail:
+# - When `db_file=None` and the file exists, a timestamped `.bak` is written
+#   before any change. Tests usually pass an explicit `db_file` to a temp
+#   path so no backup is created.
 def seed_surf_demo_class(*, db_file: Path | None = None, replace: bool = False) -> dict:
     """Seed one marked demo ``Surf`` class in a SQLite DB.
 

@@ -9,6 +9,28 @@ rendered (internal-only — consumed by the future SLO extractor).
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — PURE-PYTHON FACTSHEET RENDERER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Takes the cleaned factsheet JSON (the output of `factsheet_cleaner.py`)
+# and turns it into student-facing Markdown. No Claude call lives in this
+# module — it is pure string formatting. Empty subsections auto-hide so
+# the result never shows filler text.
+#
+# Important code pieces:
+# - `_value`: returns a safe display string with a fallback like
+#   "Not specified" when a field is blank.
+# - `_bullets`: maps a Python list of strings to Markdown bullets.
+# - `_assessment_bullets`: special case for the assessment components,
+#   which arrive as a list of dicts and render as nested bullets.
+# - `_maybe_subsection`: hides a heading entirely when its list is empty.
+# - `render_cleaned_factsheet_markdown`: the public function used by the
+#   class hub view to display the cleaned factsheet.
+#
+# App connection:
+# `factsheet_cleaner.py` produces the JSON; this renderer is read by the
+# class hub and any preview that needs to show the cleaned factsheet.
 from typing import Any
 
 # The cleaner returns a JSON-like dictionary for all factsheet sections.

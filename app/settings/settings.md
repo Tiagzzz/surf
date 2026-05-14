@@ -39,7 +39,7 @@ views/settings.py
 
 ## Connected code, tools, and libraries
 
-- **Streamlit:** `st.container`, `st.text_input`, `st.button`, `st.dialog`, `st.spinner`, `st.toast`, `st.rerun`, `st.switch_page`, and `st.session_state.clear`.
+- **Streamlit:** `st.container`, `st.text_input`, `st.button`, `st.dialog`, `st.spinner`, `st.toast`, `st.rerun`, and `st.session_state.clear`.
 - **Shared shell:** `render_topbar`, `page_rail`, and `render_page_header` give Settings the authenticated Surf shell.
 - **Shared AI-use copy:** `app/signup/signup_flow/ai_use_copy.md` feeds both P1 and P7 so the explanation stays single-sourced.
 - **Anthropic validation:** `app.brain.claude_client.validate_anthropic_key` validates the newly typed replacement key only.
@@ -51,7 +51,7 @@ views/settings.py
 1. **Profile card:** User types a new display name → `save_display_name(user_id, new_name)` strips and validates → DB helper updates the user row → page toasts success and reruns, or shows the returned error copy.
 2. **Anthropic API key card:** User types a new key → `replace_api_key_after_validation(user_id, new_key)` strips it, validates with Anthropic, and only then persists it. Blank input, validation failure, validation exception, persist exception, or persist `False` keep the old key unchanged.
 3. **AI USE dialog:** User presses `AI USE` → `_render_ai_use_dialog()` opens a modal and renders the shared markdown. No DB/API write happens.
-4. **Reset card:** User presses `RESET APP DATA` → dialog asks for exact typed `DELETE` → confirmed reset calls `reset_local_account_data`, clears Streamlit session state, shows a toast, and routes to `views/signup.py`.
+4. **Reset card:** User presses `RESET APP DATA` → dialog asks for exact typed `DELETE` → confirmed reset calls `reset_local_account_data`, clears Streamlit session state, shows a toast, and reruns through the app router. Because the local user/key has been deleted, the router mounts only Sign Up.
 
 ## Constraints
 
@@ -78,7 +78,7 @@ import streamlit as st
 
 ### 2. Locked constants
 
-The next block defines every visible Settings label and helper string: page title, card titles, field labels, button labels, toast messages, reset dialog copy, and the post-reset route.
+The next block defines every visible Settings label and helper string: page title, card titles, field labels, button labels, toast messages, reset dialog copy, and the signup route constant used by tests/docs.
 
 ```python
 RESET_TYPED_TOKEN = "DELETE"
@@ -117,7 +117,7 @@ The dialog reads the shared markdown. The API-key card shows only saved-key pres
 
 ### 7. `_render_reset_dialog()` and `_render_reset_card()`
 
-The reset card shows the local DB path and warning copy. The dialog collects the typed confirmation, disables the destructive button until `is_reset_confirmation_armed(typed)` is true, then calls `reset_fn()`, clears session state, and routes to signup.
+The reset card shows the local DB path and warning copy. The dialog collects the typed confirmation, disables the destructive button until `is_reset_confirmation_armed(typed)` is true, then calls `reset_fn()`, clears session state, shows the success toast, and calls `st.rerun()`. The rerun lets `streamlit_app.py` recalculate auth from the now-empty local data and show Sign Up directly.
 
 ### 8. `render_settings_page()`
 
@@ -126,11 +126,11 @@ The public entry point renders topbar, Settings CSS, page rail, shared page head
 ## Testing notes
 
 ```bash
-python -m pytest -q tests/test_settings_account.py tests/test_settings_reset.py tests/test_no_secrets_committed.py tests/test_no_real_db.py
-ruff check app/settings views/settings.py --no-cache
+python -m pytest -q tests/test_streamlit_app_router.py
+ruff check app/settings views/settings.py tests/test_streamlit_app_router.py --no-cache
 ```
 
-These checks prove the service branches, typed reset, no-real-DB guard, no-secret guard, and Settings lint contract.
+These checks prove the typed reset reruns through the router, the signed-in reload redirect is one-time only, unauthenticated routing still mounts Sign Up only, and the Settings lint contract remains clean.
 
 ## What could break if changed
 

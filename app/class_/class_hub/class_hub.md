@@ -1,6 +1,6 @@
 # `class_hub` — Class Hub renderer
 
-This module owns the P3 Class Hub screen. It renders the topbar, class title, `DASHBOARD >`, the red `CUSTOM MOCK >` button (Phase 7), the lecture chooser grid, the Add Lecture form, the Study Next card, the selected-lecture mock launch button, the narrow lecture-delete dialog, and the Attempt History section.
+This module owns the P3 Class Hub screen. It renders the topbar, class title, `DASHBOARD >`, the red `CUSTOM MOCK >` button (Phase 7), its small “How does it work? learn more” explainer, the lecture chooser grid, the Add Lecture form, the Study Next card, the selected-lecture mock launch button, the narrow lecture-delete dialog, and the Attempt History section.
 
 ## How to call it
 
@@ -44,6 +44,8 @@ render_class_hub_page(...)
 
 - `views/class_view.py` resolves the saved user and selected class before calling this renderer.
 - `app.brain.topbar`, `app.brain.page_header`, and `app.brain.page_layout` provide shared page chrome.
+- `app.brain.processing_popup` provides the two-state waiting popup shown
+  during Add Lecture processing.
 - `app.db.queries_*` helpers keep SQLite access out of the renderer.
 - `app.class_.lecture_ingest` owns PDF processing, LO extraction, MCQ generation, and question storage.
 - `app.class_.mock_standard_launch`, `app.class_.mock_custom_launch` (Phase 7), and `app.class_.study_next_launch` own session-only P4 handoff state.
@@ -58,6 +60,7 @@ render_class_hub_page(...)
 - Attempt History stays hidden until the first completed mock or practice attempt exists.
 - The dashboard button routes to `views/dashboard.py` while keeping `selected_class_id` in session state.
 - The red `CUSTOM MOCK >` button (Phase 7) renders directly under `DASHBOARD >` with the same dimensions/layout and a red fill (`var(--surf-accent)`). Clicking launches up to 10 highest-personal-difficulty questions through the existing P4 attempt flow (`launch_mock_custom(...)`). If the class has no ready questions the button shows a toast and stays on the Class page; no DB write or attempt row is created here. Normal `TAKE MOCK >` and Study Next behavior are unchanged.
+- The text-only “How does it work? learn more” control under Custom Mock expands a casual explanation of how Surf ranks ready questions by personal difficulty. It is informational only: it does not launch a mock, call the DB directly, call Claude, or change scoring.
 - Delete mode clears selected lecture ids, only lets deletable cells open the dialog, and blocks history-linked lectures through the DB helper.
 - `question_type` is stored metadata passed forward for display and real analytics; this page does not compute difficulty profiles or classifier output.
 
@@ -81,6 +84,25 @@ Convert completed attempt rows into display rows with kind, date, counts, lectur
 ### `submit_add_lecture_form(...)`
 Validates lecture title, PDF upload, and saved key. It writes uploaded bytes to a temporary `.pdf`, calls `ingest_lecture(...)` with `title=...` and `api_key=saved_key`, cleans up the temporary file when possible, and returns renderer-friendly status dictionaries.
 
+### `_render_custom_mock_explainer(...)`
+Renders the text-only learn-more control directly under `CUSTOM MOCK >`. It
+toggles `p3_custom_mock_help_open` in Streamlit session state and shows Tiago's
+casual explanation: Custom Mock is the “hit me with the hard ones” button,
+chooses from already-prepared questions, uses question difficulty, lecture
+coverage, and past similar answers, then drops up to 10 useful hard questions
+into the normal mock screen. The helper never calls the custom launch service;
+the red Custom Mock button remains the only control that starts the mock.
+
+### `_render_add_lecture_form(...)` waiting popup
+The visible form still validates missing lecture title and missing PDF before
+starting processing. Once those visible inputs are present, it renders the
+shared `processing_popup` into a placeholder while `submit_add_lecture_form(...)`
+runs the synchronous ingestion path. Success switches that same placeholder to
+the `done` state briefly before `st.rerun()` refreshes the Class Hub. Failure
+clears the popup and shows the existing missing-key or ingest-failed copy. This
+is a visual waiting state only; lecture ingestion remains owned by
+`lecture_ingest`.
+
 ### `handle_lecture_delete(...)`
 Delegates confirmed deletion to `delete_lecture_after_confirmation(...)` and maps the result into page status. The renderer calls this only from the destructive dialog confirmation branch.
 
@@ -103,5 +125,9 @@ python -m pytest -q tests/test_class_hub_render_contract.py tests/test_class_hub
 - Moving DB access into the renderer would make tests harder and increase live-data risk.
 - Removing the saved-key lookup would make lecture upload fail or use the wrong key source.
 - Removing the temporary-PDF cleanup can leave uploaded lecture files on disk.
+- Moving ingestion into the popup helper would mix visual waiting UI with the
+  lecture-processing service and make failures harder to test.
+- Letting the Custom Mock explainer call launch/query/scoring code would turn a
+  harmless help disclosure into behavior, which is not the intent.
 - Expanding delete eligibility can break Attempt History and dashboard rows that still depend on lecture questions.
 - Replacing honest empty states with generated placeholders would mislead users.

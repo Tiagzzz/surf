@@ -6,6 +6,21 @@ Calls Claude once per lecture with the full lecture markdown and a
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND SYSTEM-PROMPT PATH
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This is the ~10-line specialist wrapper for the Learning-Objective
+# extractor. It reads a sibling `.md` file as the Claude system prompt
+# and sends one user message containing the lecture markdown plus the
+# curated factsheet subset, expecting JSON back.
+#
+# Important code pieces:
+# - `_SYSTEM_PROMPT_PATH`: `Path(__file__).with_name(...)` builds the
+#   absolute path to the sibling `.md` file holding the system prompt.
+# - `json.dumps(..., ensure_ascii=False)`: serializes the input dict to a
+#   single JSON string the model can parse; `ensure_ascii=False`
+#   preserves non-ASCII characters in slide text.
 import json
 from pathlib import Path
 from typing import Any
@@ -15,6 +30,14 @@ from app.brain.claude_client import call_claude
 _SYSTEM_PROMPT_PATH = Path(__file__).with_name("lo_extractor_system_prompt.md")
 
 
+# --------------------------------------------------------------------------- #
+# EXTRACT_LOS — ONE CLAUDE CALL FOR LEARNING OBJECTIVES + IGNORED PAGES
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Sends the full lecture markdown plus the curated factsheet subset to
+# Claude using the locked Surf "~10-line specialist" pattern. Returns a
+# dict with `learning_objectives`, `ignored_pages`, and detected
+# `language`.
 def extract_los(lecture_md: str, factsheet_subset: dict[str, Any]) -> dict[str, Any]:
     """Extract learning objectives and ignored pages from a lecture.
 

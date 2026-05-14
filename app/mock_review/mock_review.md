@@ -10,6 +10,9 @@ This bucket owns the read-only review surface for completed mock and practice at
 - Show honest recovery copy when no attempt is selected or no rows are found.
 - Route back to the class page or dashboard without changing saved answers.
 - Display the **current** personal wrong-risk score (`Difficulty for you: X/100`) per review card using the existing Phase 7 badge. The score is recomputed on every render via `app.ml.personal_difficulty.score_questions(...)`; no frozen snapshot is stored.
+- Provide a text-only `Understand your difficulty score` disclosure above the
+  first review card so students can understand the badge without adding another
+  scoring path.
 - Keep hidden Phase 7.1 metadata/history/model inputs hidden. P5 does not add a six-feature breakdown, dashboard ML widget, or layout redesign.
 
 ## What lives here
@@ -47,7 +50,7 @@ current_attempt_id
   -> list_personal_difficulty_examples_for_class(...)
   -> score_questions(...) using the same scoring shape as Custom Mock
   -> rationale_display parses JSON fields and classifies options
-  -> results_render paints summary + ordered cards + optional existing badge
+  -> results_render paints summary + difficulty explainer + ordered cards + optional existing badge
   -> bottom buttons route away without changing attempt data
 ```
 
@@ -76,7 +79,7 @@ This pure helper package decodes JSON list fields, classifies each option as cor
 
 ### `results_render/`
 
-The renderer loads the persisted attempt summary and review rows, shows recovery copy when they are missing, renders the topbar, computes current personal-difficulty scores from the same metadata/history input shape used by Custom Mock, paints the summary card, loops over review rows in stored order, and renders navigation buttons at the bottom. If example fetching or scoring fails, it safely omits the `Difficulty for you: X/100` badge and keeps the rest of P5 usable.
+The renderer loads the persisted attempt summary and review rows, shows recovery copy when they are missing, renders the topbar, paints the summary card and text-only difficulty-score explainer, computes current personal-difficulty scores from the same metadata/history input shape used by Custom Mock, loops over review rows in stored order, and renders navigation buttons at the bottom. If example fetching or scoring fails, it safely omits the `Difficulty for you: X/100` badge and keeps the rest of P5 usable.
 
 ## Constraints
 
@@ -84,7 +87,7 @@ The renderer loads the persisted attempt summary and review rows, shows recovery
 - Stored `selected_indices` is the canonical answer; older single-choice fields are not used here.
 - Skipped answers remain wrong and still show the missed correct options.
 - The page shows the stored question type; it does not infer new analytics.
-- No repeat-current-attempt shortcut, presentation preview, all-or-nothing grading change, model-generated difficulty panel, six-feature visible breakdown, dashboard ML widget, P5 layout redesign, or frozen per-attempt difficulty snapshot belongs in this bucket.
+- No repeat-current-attempt shortcut, presentation preview, all-or-nothing grading change, model-generated difficulty panel, six-feature visible breakdown, dashboard ML widget, P5 layout redesign, or frozen per-attempt difficulty snapshot belongs in this bucket. The score explainer is static help copy only.
 
 ## Tests and checks
 
@@ -100,3 +103,5 @@ The renderer loads the persisted attempt summary and review rows, shows recovery
 - Dropping `was_skipped` hides skipped-state feedback from the learner and dashboard.
 - Reordering rows can break the promise that review follows the original question order.
 - Showing invented difficulty or model-analysis output would make the page dishonest.
+- Letting the static score explainer call scoring/query/write code would violate
+  the read-only Review boundary.

@@ -5,6 +5,13 @@ only stored mock-exam Swiss grades. Missing data renders an honest empty state.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `plotly.graph_objects` draws the line chart with the grade-4 threshold
+# annotation. `escape` keeps any dynamic empty-state copy safe inside custom
+# card HTML. `Iterable` types the loose row sequence the renderer accepts.
 from html import escape
 from typing import Any, Iterable, Mapping
 
@@ -71,6 +78,20 @@ def _base_layout(height: int) -> dict[str, Any]:
 # Build a line only from real stored mock grades. If no usable grade points
 # remain after filtering, return `None` so the renderer can show honest no-trend
 # copy.
+# --------------------------------------------------------------------------- #
+# GRADE TREND BUILDER AND RENDERER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `build_grade_trend_figure` plots the stored Swiss grades of completed
+# mock attempts left-to-right oldest-to-newest, with a dashed grade-4
+# threshold line. `render_grade_trend` wraps the chart in the keyed P6
+# container and shows honest empty copy when there are no usable mock
+# grade points yet.
+#
+# Key detail:
+# - Only `mock_kind == 'mock'` rows with a stored `swiss_grade` are
+#   included. Practice and unfinished rows are filtered out so the trend
+#   matches the locked dashboard contract.
 def build_grade_trend_figure(rows: Iterable[Mapping[str, Any]]) -> go.Figure | None:
     """Build a Plotly figure from stored completed mock grades.
 

@@ -7,6 +7,18 @@ leave it as the raw JSON string so callers can decode lazily.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module manages the `classes` table. It uses `json` because the
+# `factsheet_json` column stores a Python dict serialized as JSON text.
+#
+# Important code pieces:
+# - `json`: used to encode a dict on write and decode it back on a single-row
+#   read.
+# - `DB`: shared lazy SQLite connection. Some helpers also accept a `conn`
+#   argument so unit tests can pass an explicit in-memory connection.
 import json
 from typing import Any
 
@@ -21,6 +33,13 @@ __all__ = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# ROW-TO-DICT HELPERS AND CONNECTION RESOLVER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The two converters keep results as plain `dict`/`list[dict]` (no pandas).
+# `_resolve_conn` lets callers pass an explicit connection or fall back to
+# the shared `DB` lazy proxy.
 def _row_to_dict(cur) -> dict | None:
     row = cur.fetchone()
     if row is None:
@@ -38,6 +57,26 @@ def _resolve_conn(conn: Any | None):
     return conn if conn is not None else DB
 
 
+# --------------------------------------------------------------------------- #
+# CLASS CRUD — INSERT, READ, LIST, PASS-THRESHOLD, OWNED DELETE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers create classes (P2 setup), read them back for P3/P6, expose
+# the pass threshold the Swiss-grade formula needs, and own the class-delete
+# path with ownership enforcement.
+#
+# Important code pieces:
+# - `insert_class(...)`: serializes `factsheet_json` if it is a dict and
+#   stores the new row. Returns the new SQLite row id.
+# - `get_class_by_id(...)`: single-row read that also decodes the
+#   `factsheet_json` text back into a Python dict.
+# - `list_classes_for_user(...)`: lists all classes for one user; leaves the
+#   factsheet JSON as raw text so callers decode only when needed.
+# - `get_class_pass_threshold(...)`: returns the integer pass threshold
+#   percent used by `compute_swiss_grade`.
+# - `delete_class_for_user(...)`: DELETE that requires both the class id and
+#   the owning user id to match. Cascading FKs clean up lectures, slide
+#   pages, learning objectives, attempts, and answers.
 def insert_class(
     user_id: int,
     name: str,

@@ -16,6 +16,30 @@ import streamlit as st
 from app.brain.session import get_saved_user
 from app.class_.class_hub import render_class_hub_page
 
+# --------------------------------------------------------------------------- #
+# P3 CLASS HUB PAGE WRAPPER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This wrapper renders P3 (the Class Hub for one selected class). It checks
+# that a user is signed in and forwards the currently selected class id to the
+# `class_` bucket renderer, which owns the hub layout, lecture upload, mock
+# launch CTA, attempt history, and the shared topbar with class breadcrumb.
+#
+# Important code pieces:
+# - `get_saved_user()`: from `app/brain/session.py`; returns the saved local
+#   user or `None`.
+# - `st.session_state.get("selected_class_id")`: reads the class id picked on
+#   P2 from Streamlit's per-session memory. `None` is allowed — the renderer
+#   shows a recovery screen with a `BACK TO MY CLASSES` button when the slot
+#   is missing or invalid.
+# - `render_class_hub_page(user=..., class_id=...)`: from
+#   `app/class_/class_hub.py`. Owns the P3 UI and the shared topbar call.
+#
+# App connection:
+# P3 is reached from P2 by clicking a class card. The shared topbar shows
+# `MY CLASSES › <CLASS NAME>` because the bucket renderer passes the class
+# name into `render_topbar(current_page="class_view", class_name=...)`.
+
 _user = get_saved_user()
 if _user is None:
     st.switch_page("views/signup.py")

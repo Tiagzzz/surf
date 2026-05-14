@@ -7,9 +7,24 @@ import streamlit as st
 
 from app.brain.session import is_authenticated
 
-if is_authenticated():
+AUTHENTICATED_HOME_VIEW = "views/my_classes.py"
+AUTHENTICATED_HOME_REDIRECT_KEY = "_surf_authenticated_home_redirect_done"
+
+
+def should_redirect_authenticated_session_home(session_state) -> bool:
+    """Return True once per signed-in browser session to land on My Classes."""
+    # A browser refresh starts a fresh Streamlit session without this flag.
+    if session_state.get(AUTHENTICATED_HOME_REDIRECT_KEY):
+        return False
+    session_state[AUTHENTICATED_HOME_REDIRECT_KEY] = True
+    return True
+
+
+authenticated = is_authenticated()
+
+if authenticated:
     pages = [
-        st.Page("views/my_classes.py", title="My Classes", default=True),
+        st.Page(AUTHENTICATED_HOME_VIEW, title="My Classes", default=True),
         st.Page("views/class_view.py", title="Class"),
         st.Page("views/take_mock_exam.py", title="Take Mock Exam"),
         st.Page("views/review_mock_exam.py", title="Review Mock Exam"),
@@ -19,4 +34,9 @@ if is_authenticated():
 else:
     pages = [st.Page("views/signup.py", title="Sign Up", default=True)]
 
-st.navigation(pages).run()
+navigation = st.navigation(pages)
+
+if authenticated and should_redirect_authenticated_session_home(st.session_state):
+    st.switch_page(AUTHENTICATED_HOME_VIEW)
+
+navigation.run()

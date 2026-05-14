@@ -25,6 +25,14 @@ grading time even if a future caller bypasses lecture_ingest.
 # Validate and store generated questions while keeping query returns pandas-free.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module reads and writes the `questions` table — the MCQs Claude
+# generated from slide content. It imports `json` because options,
+# `correct_indices`, and rationales are stored as JSON text columns, and the
+# shared question-type normalizer so every insert lands a canonical slug.
 import json
 from typing import Any, Sequence
 
@@ -60,6 +68,24 @@ def _rows_to_dicts(cur) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+# --------------------------------------------------------------------------- #
+# STORAGE-BOUNDARY MCQ VALIDATION
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Before any MCQ row reaches SQLite, the payload must match the locked V1
+# contract: exactly four options and rationales, between 1 and 4 unique
+# integer correct indices in `0..3`, and a canonical `question_type` slug.
+#
+# Important code pieces:
+# - `_validate_mcq_payload(...)`: raises `ValueError` with a precise message
+#   on every contract break. Mirrors the generated-boundary guard in
+#   `app.class_.lecture_ingest` so a bad payload cannot slip in.
+# - `_validated_question_type(...)`: normalizes the incoming type label and
+#   refuses anything outside the canonical Surf V1 slug set.
+#
+# Key detail:
+# - `bool` is a subclass of `int` in Python, so the check excludes booleans
+#   explicitly to stop `[True, False]` slipping through as `[1, 0]`.
 def _validate_mcq_payload(
     options: Sequence[str],
     correct_indices: Sequence[int],
@@ -103,6 +129,33 @@ def _validated_question_type(question_type: object) -> str:
     return normalized
 
 
+# --------------------------------------------------------------------------- #
+# QUESTION CRUD AND READY-QUERY HELPERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers store one Claude-generated MCQ at a time, then expose
+# different "ready" reads for the rest of the app: per slide page, per
+# lecture, per learning objective, and per class.
+#
+# Important code pieces:
+# - `insert_question(...)`: validates the MCQ shape first, normalizes the
+#   question type, then INSERTs a single row whose JSON columns are
+#   serialized with `json.dumps`. Returns the new SQLite row id.
+# - `list_questions_for_slide_page(...)`, `list_questions_for_lecture(...)`,
+#   `list_questions_for_learning_objective(...)`: plain SELECTs joined back
+#   to slide pages so the UI sees LO context.
+# - `ready_question_count_for_lecture(...)`: counts only MCQs from kept
+#   slide pages whose lecture is `ready` — the same filter as the mock
+#   launcher.
+# - `list_ready_questions_for_lecture(...)`, `list_ready_questions_for_class(...)`:
+#   list the same filtered MCQs (with LO/lecture context) so the mock and
+#   custom-mock selectors see a stable set.
+# - `get_question_display_context(...)`: small read for P4/P5 to show the
+#   question type and LO title beside the question.
+#
+# Key detail:
+# - Every helper uses parameter placeholders (`?`) — never string
+#   formatting — so the SQL is safe from injection.
 def insert_question(
     slide_page_id: int,
     question_text: str,

@@ -7,9 +7,31 @@ No database writes happen here. These helpers only shape the in-memory
 # Keeps P4 answer edits in memory until final submit.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Standard-library imports only. This pipeline owns the in-memory P4 answer
+# draft and must not import Streamlit, the database, or the Claude client.
+# The `datetime` helpers stamp when the user began the attempt so the final
+# submit can record `started_at` without persisting a draft attempt row.
 from datetime import UTC, datetime
 from typing import Any
 
+# --------------------------------------------------------------------------- #
+# SESSION-STATE CONTRACT KEYS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Two locked string constants. The renderer in `app/mock_take/question_render`
+# imports both and must use these exact spellings — they are part of the
+# session-state contract between the answer-capture helpers and the page.
+#
+# Important code pieces:
+# - `P4_IN_PROGRESS_KEY`: the `st.session_state` key under which the draft
+#   attempt dict lives while the user works through the questions.
+# - `SUBMIT_DIALOG_SENTINEL`: the marker returned by `advance(...)` when
+#   the user reaches the last question, telling the page to open the final
+#   submit confirmation dialog.
 P4_IN_PROGRESS_KEY = "p4_attempt_in_progress"
 SUBMIT_DIALOG_SENTINEL = "open_submit_dialog"
 
@@ -83,6 +105,15 @@ def _skipped_set(attempt_state: dict[str, Any]) -> set[int]:
     raise ValueError("attempt_state skipped_qids must be a set")
 
 
+# --------------------------------------------------------------------------- #
+# OPTION TOGGLE — `toggle_option`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Surf MCQs are multi-select with 1..4 correct answers. This helper flips
+# whether one option is currently picked for a question. The stored list is
+# kept sorted and de-duplicated so the final-submit `correct_indices` /
+# `selected_indices` shape always matches the schema contract. Picking any
+# option also clears any previous skip — answered beats skipped.
 def toggle_option(
     attempt_state: dict[str, Any],
     question_id: int,
@@ -118,6 +149,14 @@ def mark_skipped(attempt_state: dict[str, Any], question_id: int) -> dict[str, A
     return attempt_state
 
 
+# --------------------------------------------------------------------------- #
+# ADVANCE GATE — `can_advance`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Implements the P4 rule that `NEXT` is disabled until the user has picked
+# at least one option OR explicitly pressed `SKIP`. `SKIP` itself stays
+# enabled at all times; that asymmetry is intentional so a careful student
+# is forced to make an explicit choice.
 def can_advance(attempt_state: dict[str, Any], question_id: int) -> bool:
     """Return True only when the current question has an answer or skip."""
     qid = _qid(question_id)

@@ -5,6 +5,12 @@ Pandas is deliberately NOT imported here. Helpers return
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Only the shared lazy `DB` is needed; slide-page rows store one Markdown
+# blob per page and reference an optional learning objective.
 from app.db.connection import DB
 
 __all__ = [
@@ -28,6 +34,24 @@ def _rows_to_dicts(cur) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+# --------------------------------------------------------------------------- #
+# SLIDE-PAGE CRUD AND STATUS UPDATES
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Slide pages are one row per slide of an uploaded lecture, with the
+# extracted Markdown stored in `raw_md`. These helpers create rows during
+# ingestion, read them back for question generation, and flip their status
+# or LO assignment when needed.
+#
+# Important code pieces:
+# - `insert_slide_page(...)`: INSERT one row with the extracted Markdown
+#   and an optional learning-objective id.
+# - `get_slide_page_by_id(...)`, `list_slide_pages_for_lecture(...)`: reads;
+#   the list version is ordered by `page_number` so the UI keeps slides in
+#   lecture order.
+# - `set_slide_page_status(...)`: UPDATE both the status (`kept`, `skipped`,
+#   etc.) and the LO assignment in one statement.
+# - `set_slide_page_learning_objective(...)`: UPDATE only the LO column.
 def insert_slide_page(
     lecture_id: int,
     page_number: int,

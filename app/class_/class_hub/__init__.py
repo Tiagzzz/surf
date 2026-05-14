@@ -38,16 +38,44 @@ Visual layout follows the approved P3 composition and wording:
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This is the renderer behind P3 — the Class Hub. It pulls together every
+# building block the page needs: shared chrome (`topbar`, `page_header`,
+# `page_layout`), the upload-processing popup, the safe-delete service,
+# every mock/practice launcher, and the SQLite query helpers. The
+# top-level docstring documents the four responsibilities this module
+# owns. Imports come from `app.brain.*` (chrome and shared utilities),
+# `app.class_.*` (specialist launchers and services), `app.db.*` (typed
+# SQLite helpers), and `app.mock_review.results_render` (just for a
+# date-format helper used by the attempt-history rows).
+#
+# Important code pieces:
+# - `base64`: turns embedded font files into data URIs (used by the
+#   CSS builder so the page never depends on a network font fetch).
+# - `lru_cache`: caches the embedded `@font-face` block so the fonts are
+#   only encoded once per process.
+# - `escape`: makes user-typed strings (class names, lecture titles)
+#   safe to drop into HTML.
+# - `time.sleep`: small forced delay used by the "Reading your slides…"
+#   processing UX so the spinner is visible long enough to look honest.
+# - `streamlit as st`: the renderer. Every `st.button`, `st.columns`,
+#   `st.dialog`, `st.switch_page`, and `st.markdown` below comes from
+#   this import.
 import base64
 from functools import lru_cache
 from html import escape
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Iterable, Mapping
 
 import streamlit as st
 
 from app.brain.page_header import render_page_header
 from app.brain.page_layout import page_rail
+from app.brain.processing_popup import show_processing_popup
 from app.brain.topbar import render_topbar
 from app.class_.lecture_delete import delete_lecture_after_confirmation
 from app.class_.lecture_ingest import ingest_lecture as _ingest_lecture
@@ -65,10 +93,24 @@ from app.db.queries_questions import (
     ready_question_count_for_lecture,
 )
 from app.db.queries_users import get_saved_anthropic_api_key
+from app.mock_review.results_render import format_finished_at
 
 # --------------------------------------------------------------------------- #
 # Locked content constants
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every visible string on P3 is declared here so design, copy, and tests
+# share one source of truth. The constants are "locked" — tests assert
+# against the exact strings, so wording changes go through review. The
+# block also defines:
+#   - layout numbers (lecture grid is 3 columns x 4 rows).
+#   - the Streamlit `views/...` paths used by `st.switch_page` for
+#     navigation to P4 Take Mock, P5 Review, P6 Dashboard, and P2 list.
+#   - the `st.session_state` key names this route owns (so other pages
+#     never collide with P3's keys).
+#   - two inline SVG `data:` URIs (the dropbox file icon and the white
+#     checkmark) — kept as constants so the CSS builder lines stay under
+#     the 100-column limit.
 
 PAGE_TITLE = "Class Hub"
 
@@ -76,6 +118,21 @@ DASHBOARD_LABEL = "DASHBOARD >"
 CUSTOM_MOCK_LABEL = "CUSTOM MOCK >"
 CUSTOM_MOCK_EMPTY_TOAST = (
     "No ready questions for Custom Mock yet. Generate or import questions first."
+)
+CUSTOM_MOCK_HELP_LABEL = "How does it work? learn more"
+CUSTOM_MOCK_HELP_HIDE_LABEL = "How does it work? hide"
+CUSTOM_MOCK_HELP_BODY = (
+    'Custom Mock is your "hit me with the hard ones" button.\n\n'
+    "Surf scans the questions already prepared for this class and picks the "
+    "ones most likely to trip you up today. It looks at three things: how "
+    "tricky the question itself is, what the lecture covers, and how you've "
+    "done on similar questions before.\n\n"
+    "Just starting out? Surf leans on each question's difficulty rating. The "
+    "more you practice, the more personal it gets, your own weak spots start "
+    "shaping the picks.\n\n"
+    "You'll get up to 10 of the toughest, most useful questions dropped "
+    "straight into the normal mock exam screen. Nothing new is generated ! "
+    "Custom Mock only re-shuffles what's already there, so it's instant."
 )
 
 BUILD_MOCK_SECTION_LABEL = "Build a mock exam"
@@ -187,6 +244,7 @@ SELECTED_LECTURES_KEY = "p3_selected_lecture_ids"
 ATTEMPT_HISTORY_OPEN_KEY = "p3_attempt_history_open"
 DELETE_PENDING_LECTURE_KEY = "p3_delete_lecture_id"
 DELETE_MODE_KEY = "p3_delete_mode_active"
+CUSTOM_MOCK_HELP_OPEN_KEY = "p3_custom_mock_help_open"
 
 #: Inline SVG checkmark used by the selected-state lecture-pick
 #: checkbox visual. Lives as a module constant so the CSS line in
@@ -214,6 +272,9 @@ __all__ = [
     "DASHBOARD_LABEL",
     "CUSTOM_MOCK_LABEL",
     "CUSTOM_MOCK_EMPTY_TOAST",
+    "CUSTOM_MOCK_HELP_LABEL",
+    "CUSTOM_MOCK_HELP_HIDE_LABEL",
+    "CUSTOM_MOCK_HELP_BODY",
     "BUILD_MOCK_SECTION_LABEL",
     "BUILD_MOCK_HEADING",
     "ADD_LECTURE_LABEL",
@@ -244,6 +305,7 @@ __all__ = [
     "ATTEMPT_HISTORY_OPEN_KEY",
     "DELETE_PENDING_LECTURE_KEY",
     "DELETE_MODE_KEY",
+    "CUSTOM_MOCK_HELP_OPEN_KEY",
     "DELETE_LECTURE_BUTTON_LABEL",
     "DELETE_LECTURE_UNDO_LABEL",
     "build_lecture_grid_view_models",
@@ -261,6 +323,19 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 # Pure helpers (testable without Streamlit)
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every function in this section turns raw query rows into the small
+# dicts the renderer below consumes. They are deliberately Streamlit-
+# free, so the test suite can drive them with plain Python data and
+# assert on their outputs without spinning up the app:
+#
+# - `build_lecture_grid_view_models`: 3x4 grid cells (real + empty
+#   placeholders), plus the per-cell `selectable`/`deletable` rules.
+# - `compute_take_mock_state`: when the `TAKE MOCK >` button is enabled
+#   and whether the honest shorter-mock copy fires.
+# - `build_study_next_view_models`: rows for the Study Next side card.
+# - `build_attempt_history_view_models` / `attempt_history_is_visible`:
+#   the Attempt History toggle/section view models.
 
 
 def build_lecture_grid_view_models(
@@ -601,6 +676,11 @@ def handle_lecture_delete(
 # --------------------------------------------------------------------------- #
 # Default queries (injectable so the preview sandbox + tests can fake them)
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every "default" function here is a thin wrapper around a real SQLite
+# query. The renderer accepts these as parameters so the preview sandbox
+# and the test suite can hand in fake versions without ever touching the
+# user's live `~/.surf/user.sqlite` database.
 
 
 def _default_lecture_query(class_id: int) -> list[dict[str, Any]]:
@@ -659,11 +739,41 @@ def _default_ready_counts_per_lo(
 # --------------------------------------------------------------------------- #
 # Streamlit rendering
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Everything below draws actual widgets on screen. The first sub-section
+# embeds the custom fonts so the page does not depend on a network fetch
+# (`_font_data_uri`, `_font_face_block`). The big `_styles()` function
+# returns the whole P3 stylesheet (lecture grid, dropbox, dialog, study
+# next card, attempt history). Smaller `_render_*` helpers compose the
+# individual surfaces — the lecture grid, the dashboard button, the
+# Take Mock and Custom Mock buttons, etc. The public entry point
+# `render_class_hub_page` orchestrates them in the right order.
+#
+# Key detail:
+# - Page-level CSS in Surf must be injected via
+#   `st.markdown(..., unsafe_allow_html=True)` (NOT `st.html`) because
+#   Streamlit can silently strip large style blocks injected with
+#   `st.html`. The helpers below follow that lesson.
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _FONTS_DIR = _REPO_ROOT / "assets" / "fonts"
 
 
+# --------------------------------------------------------------------------- #
+# _FONT_DATA_URI / _FONT_FACE_BLOCK — EMBED CUSTOM FONTS AS DATA URIs
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Each Surf font (`Fraunces`, `JetBrains Mono`) is read off disk once,
+# base64-encoded, and embedded directly inside the page's `@font-face`
+# declarations as a `data:font/woff2;base64,...` URL. That means the
+# page never has to fetch a font over the network, so typography is
+# identical in tests, in the preview sandbox, and offline.
+#
+# Important code pieces:
+# - `lru_cache(maxsize=1)`: a decorator that caches the `@font-face`
+#   block so the encoding happens once per process.
+# - `try` / `except FileNotFoundError`: when a font file is missing the
+#   block falls back to an empty string instead of crashing the page.
 def _font_data_uri(filename: str) -> str:
     encoded = base64.b64encode((_FONTS_DIR / filename).read_bytes()).decode(
         "ascii"
@@ -712,6 +822,34 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# _STYLES — THE FULL P3 STYLESHEET (returned as one string)
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one large CSS document wrapped in `<style>...</style>`. The
+# renderer injects it once via `st.markdown(_styles(), unsafe_allow_html
+# =True)`. The stylesheet is built in Python (rather than living in a
+# `.css` file) because it interpolates runtime values: the embedded font
+# data URIs above plus the locked dropbox/checkmark SVGs from the
+# module constants.
+#
+# What the CSS controls, conceptually:
+# - The embedded `@font-face` block so `Fraunces` and `JetBrains Mono`
+#   are always available without a network fetch.
+# - The 3x4 lecture-pick grid: cell shadows, selected/disabled states,
+#   the inline delete affordance, and the locked empty-cell placeholder.
+# - The Add Lecture form: dropbox tile, title input, action buttons.
+# - The TAKE MOCK / CUSTOM MOCK / DASHBOARD / Study Next buttons.
+# - The destructive lecture-delete dialog and Attempt History toggle.
+# - Reduced-motion accommodations so hover/press animations do not run
+#   for users who prefer reduced motion.
+#
+# Important code pieces:
+# - The function returns a single string by concatenating the cached
+#   `@font-face` block with the rest of the inline CSS.
+# - Page-level CSS injection in Surf goes through `st.markdown(...,
+#   unsafe_allow_html=True)` (NOT `st.html`) — that is the proven
+#   pattern, and it lives in the `render_class_hub_page` entry point.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -794,7 +932,7 @@ def _styles() -> str:
       font-size: 13px !important;
       font-weight: 700 !important;
       height: 64px !important;
-      margin: 0 0 24px !important;
+      margin: 0 0 10px !important;
       transition:
         transform 0.08s ease-out,
         box-shadow 0.08s ease-out !important;
@@ -807,6 +945,59 @@ def _styles() -> str:
     .st-key-p3_custom_mock_button button:active {
       box-shadow: 0 0 0 var(--surf-shadow) !important;
       transform: translate(4px, 4px) !important;
+    }
+    .st-key-p3_custom_mock_learn_more {
+      margin: 0 0 20px !important;
+    }
+    .st-key-p3_custom_mock_learn_more button,
+    .st-key-p3_custom_mock_learn_more [data-testid="stButton"] button,
+    .st-key-p3_custom_mock_learn_more button * {
+      align-items: center !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: var(--surf-paper4) !important;
+      display: inline-flex !important;
+      font-family: "Fraunces", Georgia, serif !important;
+      font-size: 15px !important;
+      font-style: italic !important;
+      font-weight: 600 !important;
+      height: auto !important;
+      justify-content: flex-start !important;
+      letter-spacing: 0 !important;
+      line-height: 1.25 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      text-align: left !important;
+      text-transform: none !important;
+      transition: color 0.08s ease-out !important;
+      width: auto !important;
+    }
+    .st-key-p3_custom_mock_learn_more button:hover,
+    .st-key-p3_custom_mock_learn_more button:hover * {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--surf-accent) !important;
+      transform: none !important;
+      text-decoration: underline !important;
+      text-underline-offset: 3px !important;
+    }
+    .st-key-p3_custom_mock_help_card {
+      background: var(--surf-paper0);
+      border: 1.5px dashed var(--surf-paper3);
+      border-radius: 4px;
+      box-sizing: border-box;
+      color: var(--surf-paper5);
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 15px;
+      font-style: italic;
+      line-height: 1.5;
+      margin: -10px 0 24px;
+      padding: 16px 18px;
+    }
+    .surf-p3-custom-help-body {
+      margin: 0;
+      white-space: pre-line;
     }
 
     /* Build mock exam card — Paper0 hard-stamp 3px. */
@@ -2001,6 +2192,22 @@ def _render_custom_mock_button(
                 st.toast(CUSTOM_MOCK_EMPTY_TOAST)
 
 
+def _render_custom_mock_explainer() -> None:
+    """Render the text-only learn-more toggle under Custom Mock."""
+    is_open = bool(st.session_state.get(CUSTOM_MOCK_HELP_OPEN_KEY, False))
+    label = CUSTOM_MOCK_HELP_HIDE_LABEL if is_open else CUSTOM_MOCK_HELP_LABEL
+    with st.container(key="p3_custom_mock_learn_more"):
+        if st.button(label, key="p3_custom_mock_learn_more_action"):
+            st.session_state[CUSTOM_MOCK_HELP_OPEN_KEY] = not is_open
+    if st.session_state.get(CUSTOM_MOCK_HELP_OPEN_KEY, False):
+        with st.container(key="p3_custom_mock_help_card"):
+            st.html(
+                '<p class="surf-p3-custom-help-body">'
+                f"{escape(CUSTOM_MOCK_HELP_BODY)}"
+                "</p>"
+            )
+
+
 def _render_take_mock_button(
     state: dict[str, Any],
     *,
@@ -2238,8 +2445,8 @@ def _render_attempt_history(
     if not is_open:
         return
     for vm in view_models:
-        finished = vm.get("finished_at") or ""
-        date_str = str(finished).split("T")[0] if finished else "—"
+        finished = vm.get("finished_at")
+        date_str = format_finished_at(finished) if finished else "—"
         # Practice attempts move their LO title into the
         # left column under the date so the practice card matches
         # the mock-card height. The meta column keeps Questions /
@@ -2418,20 +2625,32 @@ def _render_add_lecture_form(
             st.session_state.pop(stale, None)
         st.rerun()
     elif submit_clicked:
+        cleaned_lecture_name = (lecture_name or "").strip()
+        if not cleaned_lecture_name:
+            st.error(ADD_LECTURE_MISSING_TITLE)
+            return
+        if slide_pdf_file is None:
+            st.error(ADD_LECTURE_MISSING_PDF)
+            return
+        popup = st.empty()
+        show_processing_popup(popup, state="processing")
         with st.spinner(ADD_LECTURE_PROCESSING_TOAST):
             result = submit_fn(
                 user_id=user_id,
                 class_id=class_id,
-                lecture_title=lecture_name or "",
+                lecture_title=cleaned_lecture_name,
                 slide_pdf_file=slide_pdf_file,
             )
         if result.get("ok"):
+            show_processing_popup(popup, state="done")
+            sleep(0.75)
             st.toast(ADD_LECTURE_SAVED_READY_TOAST)
             st.session_state[ADD_LECTURE_OPEN_KEY] = False
             for stale in ("p3_add_lecture_name", "p3_add_lecture_pdf"):
                 st.session_state.pop(stale, None)
             st.rerun()
         else:
+            popup.empty()
             error = result.get("error")
             if error == "missing_title":
                 st.error(ADD_LECTURE_MISSING_TITLE)
@@ -2477,6 +2696,7 @@ def _default_layout_renderer(payload: dict[str, Any]) -> None:
             custom_launch_fn=custom_launch_fn,
             switch_page_fn=switch_page_fn,
         )
+        _render_custom_mock_explainer()
 
         with st.container(key="p3_build_mock_card"):
             st.html(
@@ -2590,6 +2810,29 @@ def _default_layout_renderer(payload: dict[str, Any]) -> None:
                 )
 
 
+# --------------------------------------------------------------------------- #
+# RENDER_CLASS_HUB_PAGE — PUBLIC ENTRY POINT FOR P3
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one function `views/class_view.py` calls. It:
+#
+#   1. Pulls the class row, lecture rows, ready-question counts, weak
+#      LOs, and completed attempts (using the injected query functions).
+#   2. Computes the view models via the pure helpers near the top.
+#   3. Renders the shared topbar + page header + page rail chrome.
+#   4. Draws the lecture pick grid, the Add Lecture form, the Build
+#      Mock buttons (`TAKE MOCK >`, `CUSTOM MOCK >`, `DASHBOARD >`),
+#      the Study Next section, and (when applicable) Attempt History.
+#   5. Routes button clicks to the right launcher (`launch_mock_standard`,
+#      `launch_mock_custom`, `launch_study_next_practice`) and then to
+#      `st.switch_page` so P4 / P5 / P6 take over.
+#
+# Important code pieces:
+# - Every `*_fn` parameter is an injection seam. Tests and the preview
+#   sandbox pass fakes; production uses the `_default_*` wrappers that
+#   reach real SQLite.
+# - `Callable[[int], list[dict[str, Any]]]` etc.: type hints that
+#   document exactly what each injected function must accept and return.
 def render_class_hub_page(
     *,
     user: Mapping[str, Any],

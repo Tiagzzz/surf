@@ -1,6 +1,13 @@
 """P6 real-data question-type performance chart renderer."""
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `Sequence` describes the row input passed by the dashboard flow. Plotly
+# draws either the radar or the bar fallback. The shared question-type
+# helpers map the canonical slug stored on each question to a display label.
 from collections.abc import Sequence
 from html import escape
 from typing import Any
@@ -143,6 +150,15 @@ def question_type_empty_copy() -> tuple[str, str]:
 # Rendering follows the approved order: radar when enough real categories exist,
 # bar fallback for sparse real data, and empty copy when no attempted type rows
 # exist.
+# --------------------------------------------------------------------------- #
+# RENDER QUESTION-TYPE PERFORMANCE — RADAR WITH BAR FALLBACK
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Renders the P6 question-type accuracy card. When at least 3 real
+# attempted types exist, a radar chart shows accuracy per type. With fewer
+# real types, the renderer falls back to a horizontal bar chart so sparse
+# data still reads honestly. With no attempted rows at all, an empty-state
+# message explains the next step.
 def render_question_type_performance(
     *,
     rows: Sequence[dict],

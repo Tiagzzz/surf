@@ -8,6 +8,23 @@ provide the Figma-like card appearance.
 # Renders P4 while leaving answers session-only until final submit.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Streamlit plus a handful of stdlib helpers, the shared topbar, the
+# session-only `answer_capture` helpers, the launch-state keys from
+# `app.class_.mock_standard_launch`, the read-only `get_class_by_id` /
+# `get_question_display_context` queries, and the one-shot submit service.
+# Everything DB-writing lives behind `submit_attempt` so this renderer
+# stays focused on chrome and UI state.
+#
+# Important code pieces:
+# - `from app.mock_take.attempt_save import submit_attempt`: the only path
+#   that persists answers — called from inside the final submit dialog.
+# - `import app.mock_take.answer_capture as answer_capture`: imported as a
+#   module so the renderer can probe `hasattr(...)` for forward-compatible
+#   helpers without crashing if a method is missing.
 import base64
 from collections.abc import Mapping
 from functools import lru_cache
@@ -32,6 +49,22 @@ from app.db.queries_questions import get_question_display_context
 from app.mock_take.attempt_save import submit_attempt
 
 __all__ = ["P4_SHOW_SUBMIT_DIALOG_KEY", "render_take_mock_page"]
+
+# --------------------------------------------------------------------------- #
+# LOCKED SESSION KEYS AND COPY FALLBACKS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Constants that anchor the P4 contract. The `P4_SHOW_SUBMIT_DIALOG_KEY`
+# string is the only signal the page reads to decide whether to open the
+# finish-confirm dialog. The fallback strings keep the renderer running if
+# the imported `answer_capture` module ever drops a constant.
+#
+# Important code pieces:
+# - `P4_SHOW_SUBMIT_DIALOG_KEY`: the `st.session_state` key used to flag
+#   "open the finish dialog on the next rerun". Renaming would break P4.
+# - `_CHECKMARK_DATA_URI`: inline SVG checkmark used as the selected-state
+#   icon inside each MCQ option overlay. Inline-encoding avoids an extra
+#   asset file and dodges Streamlit's `st.html` raw-SVG sanitizer.
 
 # Submit-dialog flag shared with the final confirmation renderer.
 # The literal string is part of the session-state contract and MUST NOT drift.
@@ -90,6 +123,30 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# PAGE CSS BUILDER — `_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one big block of scoped CSS as a Python f-string. Page CSS is
+# injected via `st.markdown(_styles(), unsafe_allow_html=True)` rather than
+# `st.html(...)` because `st.html` has been observed to silently strip
+# large style payloads in Surf previews, leaving the page as raw Streamlit
+# widgets. The CSS owns: page background, the hero band, the question card
+# (with stamp shadow), the multi-select option pattern (Streamlit button
+# as full-row click target + non-interactive overlay), helper text, the
+# SKIP/NEXT/FINISH button stamps, and the finish-confirm dialog chrome.
+#
+# Important code pieces:
+# - `[class*="st-key-p4_option_pick_"]`: matches the option wrapper
+#   container key Streamlit emits for each option. Selected vs unselected
+#   variants are differentiated by suffix so the stamp animation can be
+#   targeted without leaking to other widgets.
+# - `.surf-p4-option-overlay`: `pointer-events: none` so clicks fall
+#   through to the real Streamlit button underneath.
+# - `.stDialog ...`: rules that style the finish-confirm dialog. Dialog
+#   keys (`p4_dialog_keep_answering`, `p4_dialog_finish_mock`) are
+#   intentionally distinct from page-level keys; reusing page keys inside
+#   `@st.dialog` would trigger `StreamlitDuplicateElementKey`.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -873,6 +930,26 @@ def _option_overlay_html(option_text: object, *, is_selected: bool) -> str:
     )
 
 
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `render_take_mock_page`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one function `views/take_mock_exam.py` calls. It reads the launch
+# state from `st.session_state`, falls back to a friendly recovery surface
+# if the user landed here without launching from P3, renders the shared
+# topbar with the live class and mode breadcrumb segments, draws the hero
+# counter and the question card, loops the MCQ options as full-row click
+# targets with non-interactive overlays, wires SKIP / NEXT / FINISH, and
+# opens the finish-confirm dialog when the user reaches the last question.
+#
+# Important code pieces:
+# - The two nested `st.container(key=...)` blocks per option: the outer
+#   wrapper `p4_option_pick_<state>_<qid>_<index>` carries the stamp
+#   styling; the inner `p4_option_btn_<qid>_<index>` carries the real
+#   Streamlit button that captures the click. The visible label is the
+#   non-interactive overlay rendered after the button.
+# - `st.rerun()`: tells Streamlit to immediately re-execute the script so
+#   the option toggle is reflected on the next paint.
 def render_take_mock_page(*, user: dict, class_id: int | None) -> None:
     """Render the P4 take-mock/practice page from session launch state."""
     # Coordinates recovery, answer controls, navigation, and submit dialogs.

@@ -5,6 +5,12 @@ Pandas is deliberately NOT imported here. Helpers return
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Only the shared lazy `DB` is needed; learning-objective rows are plain
+# columns with no JSON or external dependencies.
 from app.db.connection import DB
 
 __all__ = [
@@ -26,6 +32,19 @@ def _rows_to_dicts(cur) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+# --------------------------------------------------------------------------- #
+# LEARNING-OBJECTIVE CRUD
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Learning objectives group slide pages into topics. These helpers create
+# new LO rows during ingestion and read them back for ordered display.
+#
+# Important code pieces:
+# - `insert_learning_objective(...)`: INSERT one row with the page range it
+#   covers, returning the new SQLite row id.
+# - `get_learning_objective_by_id(...)`: single-row read.
+# - `list_learning_objectives_for_lecture(...)`: returns LOs ordered by
+#   `page_start` so the UI shows them in lecture order.
 def insert_learning_objective(
     lecture_id: int,
     title: str,

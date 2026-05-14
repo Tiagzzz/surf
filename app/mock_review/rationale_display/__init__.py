@@ -7,6 +7,14 @@ style later without duplicating correctness/rationale rules.
 # Converts saved answer rows into safe review display values.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Pure helpers — no Streamlit, no database, no Anthropic client. Only
+# `json` for decoding the persisted list fields and the canonical
+# question_type lookups so chip labels never invent values that are not in
+# the locked taxonomy.
 import json
 from typing import Any
 
@@ -47,6 +55,22 @@ def _loads_list(value: object) -> list[Any]:
     return decoded if isinstance(decoded, list) else []
 
 
+# --------------------------------------------------------------------------- #
+# OPTION STATE CLASSIFIER — `classify_option_state`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Looks at one option's index alongside the user's saved answer and the
+# question's correct answer set, and returns a small state string that the
+# P5 renderer uses to paint the option. Skipped attempts still mark the
+# correct option(s) as `missed` so the review can show the user what they
+# should have picked, while non-correct options stay in the neutral skipped
+# styling.
+#
+# Important code pieces:
+# - `option_index: int`: which of the up-to-4 options this is.
+# - The keyword-only `selected_indices`, `correct_indices`, and
+#   `was_skipped` parameters: keyword-only (the `*,` argument) so callers
+#   cannot accidentally swap them by position.
 def classify_option_state(
     option_index: int,
     *,

@@ -5,6 +5,12 @@ Pandas is deliberately NOT imported here. Helpers return
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Only the shared `DB` lazy proxy is needed; lectures are stored in plain
+# columns (no JSON), so the standard library alone is enough.
 from app.db.connection import DB
 
 __all__ = [
@@ -17,6 +23,12 @@ __all__ = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# ROW-TO-DICT HELPERS — PANDAS-FREE QUERY OUTPUT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Convert raw SQLite cursor results into plain dicts / lists of dicts so the
+# rest of the app never has to know cursor mechanics.
 def _row_to_dict(cur) -> dict | None:
     row = cur.fetchone()
     if row is None:
@@ -29,6 +41,30 @@ def _rows_to_dicts(cur) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+# --------------------------------------------------------------------------- #
+# LECTURE CRUD AND SAFE DELETE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers create lecture rows during PDF upload, read them back for
+# P3/P6 dropdowns, flip lecture status during processing, and run the safety
+# checks behind the P3/P6 lecture-delete dialog.
+#
+# Important code pieces:
+# - `insert_lecture(...)`: INSERT a new lecture row with status (default
+#   `'pending'`). Returns the new id used by ingestion.
+# - `get_lecture_by_id(...)`, `list_lectures_for_class(...)`: simple reads.
+# - `set_lecture_status(...)`: UPDATE the `status` column (`pending`,
+#   `ready`, `failed`).
+# - `get_lecture_delete_summary(...)`: JOIN-heavy SELECT that counts
+#   questions and any attempt-answer rows referencing this lecture. The
+#   `can_delete` flag is `True` only when there is zero attempt history.
+# - `delete_lecture_for_user(...)`: refuses to delete when the summary says
+#   the lecture is in use, then runs a DELETE that also checks user
+#   ownership via the subquery on `classes`.
+#
+# Key detail:
+# - The lecture delete intentionally blocks when attempts reference its
+#   questions, matching the locked P3/P6 affordance.
 def insert_lecture(
     class_id: int,
     title: str,

@@ -2,6 +2,20 @@
 # Validates the session draft before one database transaction saves it.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Pulls in one DB helper and a couple of typing primitives. The actual
+# SQLite transaction lives in `app.db.queries_attempts.finalize_attempt`; we
+# import it here under a private alias so tests can pass a `finalize_fn`
+# fake without touching the real database.
+#
+# Important code pieces:
+# - `typing.Callable`: a type hint meaning "any function". Used to declare
+#   the injectable `FinalizeFn` shape below.
+# - `_default_finalize`: the real DB-write entry point. Renamed with a
+#   leading underscore to signal "do not import this from outside".
 from typing import Any, Callable
 
 from app.db.queries_attempts import finalize_attempt as _default_finalize
@@ -55,6 +69,30 @@ def _selected_answers(
     return answers
 
 
+# --------------------------------------------------------------------------- #
+# FINAL SUBMIT — `submit_attempt`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one-shot bridge between the P4 in-memory draft and the SQLite store.
+# It refuses to run twice in parallel (`in_flight` guard), refuses to run
+# again after a successful submit (`already_submitted` guard), validates
+# every field the schema requires (class id, mock kind, question ids,
+# selected indices in 0..3 with no duplicates), and only then calls the
+# injected `finalize_fn` which performs the single all-or-nothing
+# transaction that writes the attempt and its answer rows.
+#
+# Important code pieces:
+# - The `try` / `except ValueError` branch: any validation failure leaves
+#   the draft untouched and returns `validation_error` so the page can show
+#   the user a helpful message and keep their answers on screen.
+# - The `try` / `except Exception` branch: catches any other DB-level
+#   failure and returns `error` while clearing the in-flight flag so the
+#   user can try the submit again.
+#
+# App connection:
+# This is the function the P4 submit dialog calls when the user presses
+# `FINISH MOCK` / `FINISH PRACTICE`. On success the page navigates to P5
+# review using the returned `attempt_id`.
 def submit_attempt(
     *,
     launch_state: dict[str, Any],

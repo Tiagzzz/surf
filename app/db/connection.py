@@ -15,12 +15,48 @@ prints API key values.
 # Lazy DB access keeps imports safe and live-data resets backup-first.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Standard-library helpers only. The connection module deliberately avoids any
+# project-internal imports so it can be imported very early without triggering
+# a cascade of other app modules.
+#
+# Important code pieces:
+# - `shutil`: copies files at the OS level; used for the timestamped backup
+#   created before any destructive DB rebuild.
+# - `sqlite3`: Python's built-in SQLite driver. Surf uses raw SQL — no ORM,
+#   per the course rules and the project lock.
+# - `datetime`, `timezone`: build the UTC timestamp that labels backup files.
+# - `Path`: object-oriented filesystem paths instead of bare strings.
+# - `Any`: type hint used by the lazy proxy where the real return type is
+#   whatever the underlying sqlite3 method returns.
 import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# --------------------------------------------------------------------------- #
+# SCHEMA PATH AND COMPATIBILITY HELPERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `_SCHEMA_PATH` points at the canonical `schema.sql` file beside this module.
+# Every fresh database is created from that file. The small helpers below add
+# missing columns/indexes to older local databases so we never have to wipe a
+# user's data just because a new column shipped.
+#
+# Important code pieces:
+# - `_table_columns(...)`: reads the current column names from SQLite using
+#   `PRAGMA table_info(<table>)` — a SQLite-only way to introspect a table.
+# - `_add_column_if_missing(...)`: runs `ALTER TABLE ... ADD COLUMN ...` only
+#   when the column does not exist yet. Safe to call on every startup.
+# - `_dedupe_attempt_answer_positions(...)`: fixes legacy attempt-answer rows
+#   that all default to `position = 0` so a new unique index on
+#   `(attempt_id, position)` can be created without failing.
+# - `_backfill_existing_schema(...)`: orchestrates the additive migrations and
+#   creates the two unique indexes used by V1 attempts.
 # Resolve the live-DB path lazily through ``_default_db_file()`` so that test
 # suites that monkeypatch ``Path.home`` see the temp HOME instead of the real
 # one. Module-level ``DB_FILE`` is preserved as a writable attribute so the
@@ -139,6 +175,22 @@ def _backfill_existing_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+# --------------------------------------------------------------------------- #
+# LIVE DB PATH AND OPEN HELPERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These helpers say WHERE the live SQLite file lives and HOW to open it.
+# `DB_FILE` is a module-level path tests can override. `connect()` opens (or
+# creates) the file, applies the schema, and turns on foreign-key checks.
+#
+# Important code pieces:
+# - `_default_db_file()`: resolves to `~/.surf/user.sqlite` under whatever
+#   the current `HOME` is (tests monkeypatch `Path.home`).
+# - `connect(...)`: opens the SQLite file, sets `PRAGMA foreign_keys = 1` so
+#   cascading deletes work, runs the schema script, then runs the additive
+#   backfills. `check_same_thread=False` is required because Streamlit reruns
+#   in different threads.
+# - `get_connection(...)`: explicit alias preferred by non-test callers.
 def _default_db_file() -> Path:
     """Return the canonical live DB path under the (possibly monkeypatched) HOME."""
     return Path.home() / ".surf" / "user.sqlite"
@@ -173,6 +225,28 @@ def get_connection(db_file: Path | None = None) -> sqlite3.Connection:
     return connect(db_file)
 
 
+# --------------------------------------------------------------------------- #
+# LAZY CONNECTION PROXY — `_LazyConnection`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# A small wrapper class that quacks like a real `sqlite3.Connection` but does
+# not open the database until someone actually calls a method on it. That
+# means `import app.db.connection` is safe and free of side effects.
+#
+# Important code pieces:
+# - `_ensure(...)`: opens the real connection the first time it is needed.
+# - `execute`, `executemany`, `executescript`, `commit`, `rollback`, `close`,
+#   `cursor`: forwarded to the real connection (or no-ops when the DB has not
+#   been opened yet).
+# - `__enter__` / `__exit__`: lets `with DB:` behave like the standard sqlite
+#   transaction context manager. Query helpers rely on this pattern.
+# - `__getattr__`: forwards any other attribute access (like
+#   `DB.row_factory`) to the real connection on first use.
+#
+# App connection:
+# Production code says `from app.db.connection import DB` and uses `DB` as if
+# it were a normal connection. Tests rebind `conn.DB` to a real connection
+# bound to a temp file, and the rest of the app keeps working unchanged.
 class _LazyConnection:
     """Lazy proxy around ``sqlite3.Connection``.
 
@@ -242,6 +316,27 @@ class _LazyConnection:
 DB: Any = _LazyConnection()
 
 
+# --------------------------------------------------------------------------- #
+# DESTRUCTIVE REBUILD WITH BACKUP — `rebuild_user_database_with_backup`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The single approved way to wipe-and-rebuild the live database. It copies
+# the current file to a timestamped `.bak` first, deletes the original, then
+# creates a fresh DB from `schema.sql`. The returned dict tells callers what
+# happened so the P7 reset screen can show the backup path.
+#
+# Important code pieces:
+# - `_default_db_file()`: target path under `~/.surf/`.
+# - `datetime.now(timezone.utc).strftime(...)`: builds a UTC timestamp like
+#   `20260514T103045Z` so backup files sort chronologically.
+# - `shutil.copy2(...)`: copies the DB file preserving metadata.
+# - `target.unlink()`: deletes the original file before re-creating it.
+# - `connect(target)` + `.close()`: applies the schema, then closes so the
+#   lazy proxy can re-open on next use.
+#
+# App connection:
+# This is what P7 "DELETE" reset eventually calls. The function deliberately
+# never reads or logs the saved Anthropic API key.
 def rebuild_user_database_with_backup() -> dict[str, Any]:
     """Timestamped backup → reset → fresh schema for the live DB.
 

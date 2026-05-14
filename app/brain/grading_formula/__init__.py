@@ -19,9 +19,43 @@ never call Claude, and never log.
 # Pure grading helpers shared by attempts, review, and score summaries.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND PUBLIC EXPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Just the `Sequence` type hint and the `__all__` list. There are no DB,
+# Streamlit, or Claude imports — every function in this file is a pure
+# math/logic helper, which makes them trivial to unit-test.
+#
+# Important code pieces:
+# - `Sequence[int]`: a type hint saying "any read-only sequence of ints"
+#   (a list, tuple, etc.). It documents intent without locking the caller
+#   into one container type.
+# - `__all__`: the three names this module promises to expose.
 from typing import Sequence
 
 __all__ = ["is_exact_match", "compute_swiss_grade", "compute_score_summary"]
+
+
+# --------------------------------------------------------------------------- #
+# IS_EXACT_MATCH — EXACT-SET GRADING WITH NO PARTIAL CREDIT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns True only when the user picked exactly the right answers — no
+# extra, no missing, and they did not skip the question. Order does not
+# matter because the comparison uses Python `set(...)`.
+#
+# Important code pieces:
+# - `set(selected_indices) == set(correct_indices)`: turns both lists into
+#   unordered sets and compares them; `{0, 2} == {2, 0}` is True.
+# - `_all_unique(...)`: a tiny helper below that rejects duplicate indices
+#   like `[0, 0]`, which the product lock forbids.
+# - `was_skipped: bool = False`: keyword-only flag (the `*` in the
+#   signature makes it keyword-only); skipped answers are always wrong.
+#
+# App connection:
+# P4 take-mock final submit and P5 review both use this helper so the
+# grading rule stays identical between live grading and re-display.
 
 
 def is_exact_match(
@@ -64,6 +98,24 @@ def compute_swiss_grade(
     Raises ``ValueError`` if ``total_count`` is not positive or the threshold
     is outside ``(0, 100)``.
     """
+    # --------------------------------------------------------------------- #
+    # COMPUTE_SWISS_GRADE — TURN A SCORE PERCENT INTO A SWISS QUARTER GRADE
+    # --------------------------------------------------------------------- #
+    # Simple explanation:
+    # Surf displays grades the way Swiss universities do: a number between
+    # 1.00 (worst) and 6.00 (best) in 0.25 steps. The teacher's pass mark
+    # ("how many percent right counts as a grade 4") splits the range into
+    # 12 fail buckets (1.00..3.75) and 9 pass buckets (4.00..6.00).
+    #
+    # Important code pieces:
+    # - `score_pct = correct_count / total_count * 100`: percentage of
+    #   right answers across the whole attempt.
+    # - `below = [1.00 + 0.25 * i for i in range(12)]`: list comprehension
+    #   that builds the 12-step fail ladder.
+    # - `above = [4.00 + 0.25 * i for i in range(9)]`: the 9-step pass
+    #   ladder.
+    # - `raise ValueError(...)`: stop with a clear error when called with
+    #   nonsense inputs instead of returning a garbage grade.
     # Convert score percentage into the locked quarter-grade ladder.
     if total_count <= 0:
         raise ValueError("total_count must be > 0")
@@ -110,6 +162,17 @@ def compute_score_summary(
     ``score_pct`` is a plain float in [0, 100]. ``swiss_grade`` is a quarter
     grade in [1.00, 6.00] computed via :func:`compute_swiss_grade`.
     """
+    # --------------------------------------------------------------------- #
+    # COMPUTE_SCORE_SUMMARY — BUNDLE THE VALUES STORED WITH AN ATTEMPT
+    # --------------------------------------------------------------------- #
+    # Simple explanation:
+    # P4 final submit calls this once at the end of an attempt to package
+    # everything the attempt row needs: how many were correct, how many
+    # total, the raw percent, and the Swiss grade.
+    #
+    # Key detail:
+    # - Returns a `dict` (Python dictionary) with stable keys so the
+    #   query helper that writes the attempt row can index it directly.
     # Package the values persisted with a completed attempt.
     if total_count <= 0:
         raise ValueError("total_count must be > 0")

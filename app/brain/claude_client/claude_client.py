@@ -10,6 +10,23 @@ system prompt only pays full input price once per 5-minute window.
 # Shared Claude call wrapper with prompt caching and optional JSON parsing.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This script is the single doorway every Surf module uses to talk to the
+# Anthropic Claude API. It depends on three external libraries (the
+# Anthropic SDK, the `dotenv` helper that loads a local `.env` file, and
+# the standard library `json`/`os`/`re` modules) and nothing from `app/`.
+#
+# Important code pieces:
+# - `from __future__ import annotations`: lazy type hints, lets the file
+#   reference types like `dict[str, Any]` cleanly on Python 3.11.
+# - `Anthropic`: the official Python client class for the Claude API.
+# - `TextBlockParam`: the typed shape of one cache-aware text block sent
+#   in the `system` field.
+# - `load_dotenv`: reads variables from a local `.env` file (which is
+#   gitignored) into `os.environ` so `ANTHROPIC_API_KEY` is available.
 import json
 import os
 import re
@@ -21,6 +38,27 @@ from dotenv import load_dotenv
 
 load_dotenv()  # picks up ANTHROPIC_API_KEY from a local .env (gitignored).
 
+# --------------------------------------------------------------------------- #
+# MODULE CONSTANTS AND THE PROCESS-LEVEL CLIENT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Defaults shared by every Claude call: which model to use, how many tokens
+# the response is allowed to take, and two small regular expressions that
+# clean up `\`\`\`json` code fences Claude sometimes wraps around JSON.
+# A single module-level `Anthropic` client is built once from the env-var
+# key so that the common path does not rebuild the HTTP client per call.
+#
+# Important code pieces:
+# - `DEFAULT_MODEL`: which Claude variant is used unless the caller passes
+#   `model="..."`.
+# - `DEFAULT_MAX_TOKENS`: the response token budget (a token is roughly
+#   half a word).
+# - `_FENCE_OPEN` / `_FENCE_CLOSE`: compiled regular expressions matching
+#   the opening and closing triple-backtick fences. `re.IGNORECASE` lets
+#   them match both `json` and `JSON`.
+# - `_client`: a single shared `Anthropic` instance for the default
+#   environment-key flow. Per-user saved keys instead get a fresh client
+#   inside `call_claude` to avoid leaking the saved key into module state.
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_MAX_TOKENS = 8192
 
@@ -64,6 +102,39 @@ def call_claude(
     Returns:
         Plain string by default, or a parsed dict when expect_json=True.
     """
+    # --------------------------------------------------------------------- #
+    # CALL_CLAUDE — BUILD ONE MESSAGES REQUEST AND NORMALIZE THE RESPONSE
+    # --------------------------------------------------------------------- #
+    # Simple explanation:
+    # `call_claude` is the only place in Surf that calls Anthropic. It
+    # wraps the system prompt in a cache-aware block (when caching is
+    # on), sends the user message, and returns either a plain string or
+    # a parsed JSON dict depending on `expect_json`.
+    #
+    # Important code pieces:
+    # - `system_prompt: str`, `user_message: str`: the two pieces of text
+    #   sent to Claude. The system prompt comes from a sibling `.md`
+    #   file inside each specialist script's folder.
+    # - `expect_json: bool`: when True, the response text is parsed as
+    #   JSON after stripping any surrounding triple-backtick fence.
+    # - `cache_system: bool`: when True the system block is tagged with
+    #   `cache_control: ephemeral`, which lets Anthropic reuse a cached
+    #   version of the long system prompt across calls in ~5 minutes.
+    # - `api_key: str | None`: when set, a temporary `Anthropic` client
+    #   is created for just this call. Used by the saved-per-user-key
+    #   flow so the caller's key never leaks into module-level state.
+    # - `next((b.text for b in ... if type == "text"), None)`: scans the
+    #   response content blocks and returns the first text block's text,
+    #   or `None` when no text block is present (defensive — current
+    #   calls always return text, but tool-use mode could change that).
+    # - `_FENCE_OPEN.sub(...)` / `_FENCE_CLOSE.sub(...)`: strip the
+    #   ```json fences Claude occasionally wraps around JSON output.
+    #
+    # App connection:
+    # Every Surf script that talks to Claude (factsheet cleaner, LO
+    # extractor, MCQ generator, difficulty metadata critic) goes through
+    # this function so prompt caching and the per-user-key contract stay
+    # consistent.
     # Build one Messages API request and normalize the response shape.
     system_block: str | list[TextBlockParam]
     if cache_system:
@@ -113,6 +184,20 @@ def validate_anthropic_key(api_key: str) -> bool:
     so P1/P7 can validate a newly typed replacement before deciding whether to
     store it.
     """
+    # --------------------------------------------------------------------- #
+    # VALIDATE_ANTHROPIC_KEY — CHEAP "IS THIS KEY GOOD?" CHECK
+    # --------------------------------------------------------------------- #
+    # Simple explanation:
+    # Used by P1 signup and P7 settings before saving a typed key. It only
+    # tests the key the caller passes in — it never reads the env var or
+    # the SQLite-saved key, so a bad new key cannot overwrite a working
+    # saved one.
+    #
+    # Important code pieces:
+    # - `client.models.list(limit=1)`: the cheapest authenticated endpoint;
+    #   if Anthropic accepts the key the call succeeds.
+    # - `try` / `except Exception`: any error (network, 401, etc.) is
+    #   treated as "invalid key" so callers can show a simple message.
     # Validate only the caller-provided key; never fall back to saved secrets.
     if not api_key.strip():
         return False
