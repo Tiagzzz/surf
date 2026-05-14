@@ -9,6 +9,32 @@ ignored slides.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND MODULE-LEVEL CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This file is the lecture-ingest orchestrator. It glues together the
+# PDF-to-Markdown extractor, the page splitter, the LO extractor, the
+# MCQ generator, and the optional difficulty critic, then persists the
+# results into SQLite. Imports come from `app.brain.*` (shared utilities),
+# `app.class_.*` (specialist generators), and `app.db.queries_*`
+# (typed SQLite helpers).
+#
+# Important code pieces:
+# - `json`, `logging`, `re`: standard-library modules for JSON encoding,
+#   warning/error logs, and a small regex over page markers.
+# - `_SPARSE_EXTRACTION_NON_WS_CHARS = 150`: if native PDF extraction
+#   leaves fewer than this many non-whitespace characters, we surface a
+#   clear "this PDF is unreadable" error so the user re-uploads.
+# - `_PAGE_MARKER_RE`: matches the `--- PAGE N ---` lines so we can
+#   measure the extracted body without counting separator markers.
+# - `_LO_SYSTEM_PROMPT_PATH`: where the LO-extractor system prompt lives
+#   on disk, used when the orchestrator must route a saved per-user key
+#   through `call_claude` directly.
+# - `_FACTSHEET_*` tuples: the curated subset of factsheet keys passed to
+#   the LO extractor; keeping the list short controls prompt-token cost.
+# - `_METADATA_STORAGE_FIELDS`: the five rubric columns the difficulty
+#   critic fills in `questions`.
 import json
 import logging
 import re
@@ -54,6 +80,15 @@ _METADATA_STORAGE_FIELDS = (
 )
 
 
+# --------------------------------------------------------------------------- #
+# INTERNAL HELPERS — FACTSHEET CURATION, RETRY, LO-CALL ROUTING
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# A small group of private helpers used by `ingest_lecture` below. They
+# curate the factsheet subset passed to the LO extractor, wrap one
+# Claude call with a single retry, and route the LO call either through
+# the convenience `extract_los` helper or through `call_claude` directly
+# when a per-user API key must be threaded through.
 def _build_factsheet_subset(factsheet: dict[str, Any]) -> dict[str, Any]:
     """Curate the 7-key factsheet subset for the LO prompt.
 
@@ -110,6 +145,14 @@ def _find_lo_id(page_number: int, lo_records: list[tuple[int, int, int]]) -> int
     return None
 
 
+# --------------------------------------------------------------------------- #
+# MCQ VALIDATION AND METADATA NORMALIZATION HELPERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Helpers that check generated MCQs before they reach SQLite and turn
+# the difficulty critic's raw output into safe storage rows. Validation
+# enforces the locked product rules: 4 options, 1-4 unique correct
+# indices, a known question type, and a parallel rationales list.
 def _validate_mcq(mcq: dict[str, Any]) -> bool:
     """Validate generated MCQ shape before storage.
 
@@ -238,6 +281,32 @@ def _score_metadata_for_batch(
     return _metadata_rows_by_local_id(rows, expected_local_ids)
 
 
+# --------------------------------------------------------------------------- #
+# INGEST_LECTURE — THE 5-STEP LECTURE PIPELINE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This is the public entry point used by the P3 Add Lecture form. It
+# performs the full pipeline:
+#
+#   1. PDF -> Markdown (with table detection).
+#   2. Split into per-page slides and validate the body is not too sparse.
+#   3. Ask Claude for learning objectives (with one retry).
+#   4. Persist the lecture, LOs, and per-slide pages in the right status.
+#   5. For each batch of kept slides, generate MCQs and optional
+#      difficulty metadata, then insert validated questions.
+#
+# The function tolerates partial failure: a failing LO extraction stops
+# the pipeline early, but a failing MCQ batch only flips that batch's
+# slides back to `pending` so the user can retry generation later.
+#
+# Important code pieces:
+# - `claude_call_*` parameters: injection seams used by tests to
+#   substitute fakes for the real Claude calls.
+# - `_call_with_retry(...)`: tiny "try twice, then surface the error"
+#   helper used for every Claude call here.
+# - `set_lecture_status(..., 'ready' if not any_failure else 'pending')`:
+#   final write that flips the lecture row to `ready` when every MCQ
+#   batch succeeded, or to `pending` (retryable) when one or more failed.
 def ingest_lecture(
     class_id: int,
     pdf_path: Path,

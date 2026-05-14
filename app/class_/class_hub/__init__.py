@@ -38,6 +38,32 @@ Visual layout follows the approved P3 composition and wording:
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This is the renderer behind P3 — the Class Hub. It pulls together every
+# building block the page needs: shared chrome (`topbar`, `page_header`,
+# `page_layout`), the upload-processing popup, the safe-delete service,
+# every mock/practice launcher, and the SQLite query helpers. The
+# top-level docstring documents the four responsibilities this module
+# owns. Imports come from `app.brain.*` (chrome and shared utilities),
+# `app.class_.*` (specialist launchers and services), `app.db.*` (typed
+# SQLite helpers), and `app.mock_review.results_render` (just for a
+# date-format helper used by the attempt-history rows).
+#
+# Important code pieces:
+# - `base64`: turns embedded font files into data URIs (used by the
+#   CSS builder so the page never depends on a network font fetch).
+# - `lru_cache`: caches the embedded `@font-face` block so the fonts are
+#   only encoded once per process.
+# - `escape`: makes user-typed strings (class names, lecture titles)
+#   safe to drop into HTML.
+# - `time.sleep`: small forced delay used by the "Reading your slides…"
+#   processing UX so the spinner is visible long enough to look honest.
+# - `streamlit as st`: the renderer. Every `st.button`, `st.columns`,
+#   `st.dialog`, `st.switch_page`, and `st.markdown` below comes from
+#   this import.
 import base64
 from functools import lru_cache
 from html import escape
@@ -72,6 +98,19 @@ from app.mock_review.results_render import format_finished_at
 # --------------------------------------------------------------------------- #
 # Locked content constants
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every visible string on P3 is declared here so design, copy, and tests
+# share one source of truth. The constants are "locked" — tests assert
+# against the exact strings, so wording changes go through review. The
+# block also defines:
+#   - layout numbers (lecture grid is 3 columns x 4 rows).
+#   - the Streamlit `views/...` paths used by `st.switch_page` for
+#     navigation to P4 Take Mock, P5 Review, P6 Dashboard, and P2 list.
+#   - the `st.session_state` key names this route owns (so other pages
+#     never collide with P3's keys).
+#   - two inline SVG `data:` URIs (the dropbox file icon and the white
+#     checkmark) — kept as constants so the CSS builder lines stay under
+#     the 100-column limit.
 
 PAGE_TITLE = "Class Hub"
 
@@ -284,6 +323,19 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 # Pure helpers (testable without Streamlit)
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every function in this section turns raw query rows into the small
+# dicts the renderer below consumes. They are deliberately Streamlit-
+# free, so the test suite can drive them with plain Python data and
+# assert on their outputs without spinning up the app:
+#
+# - `build_lecture_grid_view_models`: 3x4 grid cells (real + empty
+#   placeholders), plus the per-cell `selectable`/`deletable` rules.
+# - `compute_take_mock_state`: when the `TAKE MOCK >` button is enabled
+#   and whether the honest shorter-mock copy fires.
+# - `build_study_next_view_models`: rows for the Study Next side card.
+# - `build_attempt_history_view_models` / `attempt_history_is_visible`:
+#   the Attempt History toggle/section view models.
 
 
 def build_lecture_grid_view_models(
@@ -624,6 +676,11 @@ def handle_lecture_delete(
 # --------------------------------------------------------------------------- #
 # Default queries (injectable so the preview sandbox + tests can fake them)
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Every "default" function here is a thin wrapper around a real SQLite
+# query. The renderer accepts these as parameters so the preview sandbox
+# and the test suite can hand in fake versions without ever touching the
+# user's live `~/.surf/user.sqlite` database.
 
 
 def _default_lecture_query(class_id: int) -> list[dict[str, Any]]:
@@ -682,11 +739,41 @@ def _default_ready_counts_per_lo(
 # --------------------------------------------------------------------------- #
 # Streamlit rendering
 # --------------------------------------------------------------------------- #
+# Simple explanation:
+# Everything below draws actual widgets on screen. The first sub-section
+# embeds the custom fonts so the page does not depend on a network fetch
+# (`_font_data_uri`, `_font_face_block`). The big `_styles()` function
+# returns the whole P3 stylesheet (lecture grid, dropbox, dialog, study
+# next card, attempt history). Smaller `_render_*` helpers compose the
+# individual surfaces — the lecture grid, the dashboard button, the
+# Take Mock and Custom Mock buttons, etc. The public entry point
+# `render_class_hub_page` orchestrates them in the right order.
+#
+# Key detail:
+# - Page-level CSS in Surf must be injected via
+#   `st.markdown(..., unsafe_allow_html=True)` (NOT `st.html`) because
+#   Streamlit can silently strip large style blocks injected with
+#   `st.html`. The helpers below follow that lesson.
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _FONTS_DIR = _REPO_ROOT / "assets" / "fonts"
 
 
+# --------------------------------------------------------------------------- #
+# _FONT_DATA_URI / _FONT_FACE_BLOCK — EMBED CUSTOM FONTS AS DATA URIs
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Each Surf font (`Fraunces`, `JetBrains Mono`) is read off disk once,
+# base64-encoded, and embedded directly inside the page's `@font-face`
+# declarations as a `data:font/woff2;base64,...` URL. That means the
+# page never has to fetch a font over the network, so typography is
+# identical in tests, in the preview sandbox, and offline.
+#
+# Important code pieces:
+# - `lru_cache(maxsize=1)`: a decorator that caches the `@font-face`
+#   block so the encoding happens once per process.
+# - `try` / `except FileNotFoundError`: when a font file is missing the
+#   block falls back to an empty string instead of crashing the page.
 def _font_data_uri(filename: str) -> str:
     encoded = base64.b64encode((_FONTS_DIR / filename).read_bytes()).decode(
         "ascii"
@@ -735,6 +822,34 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# _STYLES — THE FULL P3 STYLESHEET (returned as one string)
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one large CSS document wrapped in `<style>...</style>`. The
+# renderer injects it once via `st.markdown(_styles(), unsafe_allow_html
+# =True)`. The stylesheet is built in Python (rather than living in a
+# `.css` file) because it interpolates runtime values: the embedded font
+# data URIs above plus the locked dropbox/checkmark SVGs from the
+# module constants.
+#
+# What the CSS controls, conceptually:
+# - The embedded `@font-face` block so `Fraunces` and `JetBrains Mono`
+#   are always available without a network fetch.
+# - The 3x4 lecture-pick grid: cell shadows, selected/disabled states,
+#   the inline delete affordance, and the locked empty-cell placeholder.
+# - The Add Lecture form: dropbox tile, title input, action buttons.
+# - The TAKE MOCK / CUSTOM MOCK / DASHBOARD / Study Next buttons.
+# - The destructive lecture-delete dialog and Attempt History toggle.
+# - Reduced-motion accommodations so hover/press animations do not run
+#   for users who prefer reduced motion.
+#
+# Important code pieces:
+# - The function returns a single string by concatenating the cached
+#   `@font-face` block with the rest of the inline CSS.
+# - Page-level CSS injection in Surf goes through `st.markdown(...,
+#   unsafe_allow_html=True)` (NOT `st.html`) — that is the proven
+#   pattern, and it lives in the `render_class_hub_page` entry point.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -2695,6 +2810,29 @@ def _default_layout_renderer(payload: dict[str, Any]) -> None:
                 )
 
 
+# --------------------------------------------------------------------------- #
+# RENDER_CLASS_HUB_PAGE — PUBLIC ENTRY POINT FOR P3
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one function `views/class_view.py` calls. It:
+#
+#   1. Pulls the class row, lecture rows, ready-question counts, weak
+#      LOs, and completed attempts (using the injected query functions).
+#   2. Computes the view models via the pure helpers near the top.
+#   3. Renders the shared topbar + page header + page rail chrome.
+#   4. Draws the lecture pick grid, the Add Lecture form, the Build
+#      Mock buttons (`TAKE MOCK >`, `CUSTOM MOCK >`, `DASHBOARD >`),
+#      the Study Next section, and (when applicable) Attempt History.
+#   5. Routes button clicks to the right launcher (`launch_mock_standard`,
+#      `launch_mock_custom`, `launch_study_next_practice`) and then to
+#      `st.switch_page` so P4 / P5 / P6 take over.
+#
+# Important code pieces:
+# - Every `*_fn` parameter is an injection seam. Tests and the preview
+#   sandbox pass fakes; production uses the `_default_*` wrappers that
+#   reach real SQLite.
+# - `Callable[[int], list[dict[str, Any]]]` etc.: type hints that
+#   document exactly what each injected function must accept and return.
 def render_class_hub_page(
     *,
     user: Mapping[str, Any],

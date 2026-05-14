@@ -6,6 +6,13 @@ uses only direct lecture-specific answer rows from completed mocks, passed in as
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `Callable` types the dropdown/series query seams tests inject. `Sequence`
+# describes the loose row inputs the renderer accepts. Plotly draws the
+# selected lecture's trend; `escape` keeps copy safe inside custom card HTML.
 from collections.abc import Callable, Sequence
 from html import escape
 from typing import Any
@@ -176,6 +183,20 @@ def _lecture_label(row: dict) -> str:
 # Render all uploaded lectures in the selectbox, then chart the selected
 # lecture only if direct performance rows exist. This keeps the dashboard stable
 # while the user is still building history.
+# --------------------------------------------------------------------------- #
+# RENDER LECTURE FOCUS — DROPDOWN + SELECTED LECTURE CHART
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Renders the P6 Lecture Focus card. The dropdown lists every uploaded
+# lecture for the class so the user can always pick one, even when no
+# completed mock has touched it yet. The chart draws the selected
+# lecture's stored mock points; honest empty copy explains the next step
+# when no data exists.
+#
+# Key detail:
+# - When real performance exists for at least one lecture, the default
+#   selection is the weakest lecture by average Swiss grade. Otherwise
+#   the first uploaded lecture is selected so the dropdown is never blank.
 def render_lecture_performance(
     *,
     lectures: Sequence[dict],

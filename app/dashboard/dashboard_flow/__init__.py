@@ -7,6 +7,22 @@ helpers called.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The dashboard flow ties together topbar, page header, ownership-validated
+# class data, and the chart sub-modules. It imports `Callable`/`Mapping` to
+# describe the injectable seams that tests use, and `escape` to keep any
+# user-typed text from injecting HTML into the decorative card markup.
+#
+# Important code pieces:
+# - `Callable`, `Mapping`: type-hint shapes for injected query / topbar /
+#   page-switch helpers.
+# - `escape`: turns characters like `<` into `&lt;` before placing text
+#   inside a custom HTML card.
+# - `streamlit as st`: Streamlit lives at module scope; the default page
+#   render uses this `st`, while tests pass their own `st_module`.
 from collections.abc import Callable, Mapping
 from html import escape
 from typing import Any
@@ -150,6 +166,14 @@ def _render_recovery(
             switch_page_fn("views/my_classes.py")
 
 
+# --------------------------------------------------------------------------- #
+# RECOVERY CSS BUILDER — `_recovery_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns the scoped CSS used only by the no-valid-class recovery panel.
+# It styles the `BACK TO MY CLASSES` button with Surf's paper background,
+# dark border, 4px stamp shadow, and the press-into-shadow active animation
+# (with a reduced-motion fallback).
 def _recovery_styles() -> str:
     """Return scoped P6 recovery button styling."""
     # This CSS targets only the stale/missing-class recovery container. It fixes the
@@ -195,6 +219,28 @@ def _recovery_styles() -> str:
 """
 
 
+# --------------------------------------------------------------------------- #
+# DASHBOARD CSS BUILDER — `_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns the scoped CSS that styles the P6 dashboard page chrome: section
+# kickers, hero title, summary metric cards (paper + dark variant), chart
+# card backgrounds, and the empty-state heading typography. Built as a
+# Python string and injected via `st.html(...)` once per render.
+#
+# What the CSS controls, section by section:
+# - `.surf-p6-kicker`, `.surf-p6-section-label`, `.surf-p6-card-title`,
+#   `.surf-p6-helper`, `.surf-p6-chart-note`: JetBrains Mono labels for
+#   small caps text above titles and beside charts.
+# - `.surf-p6-title`, `.surf-p6-section-heading`, `.surf-p6-metric`,
+#   `.surf-p6-empty-heading`: Fraunces italic display typography.
+# - `.p6-metric-card`, `.p6-metric-card--dark`: the four summary cards in
+#   the top band. The dark variant flips colors for the "Questions
+#   answered" highlight.
+# - `.st-key-p6_grade_line_card`, `.st-key-p6_coverage_doughnut_card`,
+#   `.st-key-p6_future_section`: shared paper/border/shadow for chart and
+#   future-section containers.
+# - `.surf-p6-empty-state`: vertical centering for honest empty states.
 def _styles() -> str:
     """Return scoped P6 class-overview styling."""
     # These styles define dashboard chrome: section labels, metric cards, chart
@@ -420,6 +466,26 @@ def _default_render_layout(payload: dict[str, Any], *, st_module: Any = st) -> N
 # Public entry point for `views/dashboard.py`. It owns the route-level decision:
 # recover before aggregates when IDs are bad, otherwise validate ownership, load
 # real dashboard data, and delegate visual rendering.
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `render_dashboard_page`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The function `views/dashboard.py` calls to draw the P6 page. It treats the
+# Streamlit `selected_class_id` as untrusted input: it coerces it to a
+# positive int, looks up the class while enforcing user ownership, and only
+# then calls aggregate helpers and the layout renderer. Bad/stale/foreign
+# IDs render honest recovery copy before any analytics run.
+#
+# Important code pieces:
+# - `_coerce_int(...)`: returns `None` for anything that is not safely
+#   integer-like, so invalid routes can branch into the recovery render.
+# - `get_class_fn(...)`: defaults to `_get_owned_class`, which validates
+#   that `classes.user_id` matches the saved user id.
+# - `aggregate_fns`: a dict of dashboard helpers; tests can inject any
+#   subset to focus on one chart at a time.
+# - `_default_render_layout`: the production renderer that composes header,
+#   summary cards, grade trend, coverage donut, lecture focus, question
+#   type chart, and Study Next.
 def render_dashboard_page(
     *,
     user: Mapping[str, Any],

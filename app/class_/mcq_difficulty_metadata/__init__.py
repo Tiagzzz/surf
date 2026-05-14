@@ -5,6 +5,22 @@ pure scoring package consumes only the normalized metadata rows produced here.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND MODULE CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This package is the Claude-based "critic" that scores generated MCQs on
+# five difficulty rubrics plus a wording-clarity flag. It is intentionally
+# outside `app/ml/` because it calls Claude; the pure scoring code in
+# `app.ml.personal_difficulty` reads only the normalized metadata rows
+# this module produces.
+#
+# Important code pieces:
+# - `_SYSTEM_PROMPT_PATH`: sibling `.md` system prompt used in the
+#   Surf "~10-line specialist" pattern.
+# - `log`: module-level logger so soft failures stay visible.
+# - `_SCORE_FIELDS`: maps the rubric names Claude returns ("conceptual
+#   density" etc.) to the SQLite column names Surf actually stores.
 import json
 import logging
 from pathlib import Path
@@ -24,6 +40,14 @@ _SCORE_FIELDS = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# EMPTY_METADATA_FOR_LOCAL_ID — SAFE NULL ROW WHEN CRITIC IS MISSING
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns the placeholder storage row used when Claude either skips a
+# question or fails to score it. Numeric fields stay `None` (NULL in
+# SQLite) while the clarity flag falls back to `0` because that column
+# is non-nullable.
 def empty_metadata_for_local_id(local_id: str) -> dict[str, int | str | None]:
     """Return the null-safe storage row for one generated MCQ local id."""
     # Numeric rubric values stay NULL when Claude omits or corrupts metadata;
@@ -39,6 +63,13 @@ def empty_metadata_for_local_id(local_id: str) -> dict[str, int | str | None]:
     }
 
 
+# --------------------------------------------------------------------------- #
+# BUILD_METADATA_REQUEST — PACK THE TWO INPUT PIECES THE CRITIC NEEDS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Builds the JSON payload sent to Claude: the original slide markdown
+# (so Claude has context) and the generator's per-slide MCQs (so Claude
+# can score each `local_id`).
 def build_metadata_request(
     slides_batch: list[dict[str, Any]], by_slide: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -46,6 +77,15 @@ def build_metadata_request(
     return {"slides": slides_batch, "by_slide": by_slide}
 
 
+# --------------------------------------------------------------------------- #
+# SCORE_MCQ_DIFFICULTY_METADATA — PUBLIC ENTRY POINT FOR THE CRITIC
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Public function used by the ingestion orchestrator. It calls Claude
+# once per batch and turns the response into one storage-shaped row per
+# generated `local_id`. The function is soft-failing — when the second
+# Claude call fails, every expected id falls back to a null metadata
+# row so generated MCQs are still saved without metadata.
 def score_mcq_difficulty_metadata(
     slides_batch: list[dict[str, Any]],
     by_slide: list[dict[str, Any]],
@@ -77,6 +117,14 @@ def score_mcq_difficulty_metadata(
     return validate_difficulty_metadata_response(response, expected_local_ids)
 
 
+# --------------------------------------------------------------------------- #
+# VALIDATE_DIFFICULTY_METADATA_RESPONSE — TRUSTED PROJECTION OF RAW JSON
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Takes whatever shape Claude returns and rebuilds it into exactly one
+# normalized row per expected `local_id`. Rows Claude did not produce
+# fall back to the null-safe shape; rows Claude invented (unknown ids)
+# are dropped so they can never sneak into SQLite.
 def validate_difficulty_metadata_response(
     response: dict[str, Any] | Any,
     expected_local_ids: list[str],
@@ -105,6 +153,20 @@ def validate_difficulty_metadata_response(
     ]
 
 
+# --------------------------------------------------------------------------- #
+# INTERNAL HELPERS — EXTRACT IDS, ITERATE RAW ITEMS, NORMALIZE FIELDS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Small private helpers used by the two public functions above. They
+# walk Claude's nested response shape, accept only rubric scores in the
+# 1..5 range, and coerce the clarity flag into the SQLite-safe 0/1 int.
+#
+# Important code pieces:
+# - `_coerce_score`: ints, digit strings, and only 1..5 survive; booleans
+#   are rejected because `True`/`False` are technically `int` in Python.
+# - `_coerce_clarity_issue`: accepts a wider range of truthy/falsy
+#   strings ("yes"/"no") in addition to bools/ints because Claude
+#   occasionally returns the clarity hint as plain text.
 def _expected_local_ids(by_slide: list[dict[str, Any]]) -> list[str]:
     """Extract generated-MCQ local ids in stable batch order."""
     ids: list[str] = []

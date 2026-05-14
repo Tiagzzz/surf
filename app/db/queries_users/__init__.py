@@ -11,12 +11,36 @@ be printed; callers must format only the fields they actually need.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module talks to the `users` table. It imports the shared lazy `DB`
+# proxy from `app.db.connection` and the connection module itself (so the
+# `get_local_db_path()` helper can read the current path setting).
+#
+# Important code pieces:
+# - `DB`: the lazy SQLite connection used for every read/write below.
+# - `conn_mod`: the connection module, kept so display-only helpers can read
+#   `DB_FILE` without taking a snapshot at import time.
 from typing import Any
 
 import app.db.connection as conn_mod
 from app.db.connection import DB
 
 
+# --------------------------------------------------------------------------- #
+# ROW-TO-DICT HELPERS — KEEP QUERY OUTPUT PANDAS-FREE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Two tiny converters that turn a `sqlite3` cursor result into plain Python
+# `dict` (single row) or `list[dict]` (many rows). Per Surf's locked rule,
+# pandas is intentionally NOT imported inside `queries_*`; charts and ML
+# layers may convert to DataFrames if needed, but query helpers stay simple.
+#
+# Key detail:
+# - `cur.description` lists `(name, ...)` tuples for each column; the helpers
+#   pick the column names and `zip` them with the row values.
 def _row_to_dict(cur) -> dict | None:
     row = cur.fetchone()
     if row is None:
@@ -29,6 +53,34 @@ def _rows_to_dicts(cur) -> list[dict]:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+# --------------------------------------------------------------------------- #
+# USER CRUD — INSERT, UPSERT, READ, UPDATE, RESET-PATH HELPERS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These functions are the only way Surf reads and writes the `users` table.
+# Surf V1 is single-user, so most helpers expect 0 or 1 row to exist.
+#
+# Important code pieces:
+# - `insert_user(...)`: low-level INSERT used by tests and `upsert_user_setup`.
+#   The `with DB:` block opens a SQLite transaction and commits on exit.
+# - `upsert_user_setup(...)`: P1 signup helper. Creates the single row, or if
+#   one already exists, updates its username and saved key.
+# - `get_user_by_id(...)`, `get_user_by_username(...)`, `list_users(...)`:
+#   plain SELECT reads returned as `dict` / `list[dict]`.
+# - `get_saved_anthropic_api_key(...)`: returns just the saved key column or
+#   `None`; never used for printing or logging.
+# - `get_active_user(...)`: returns the lowest-id user row; the session/auth
+#   gate uses this to detect a saved user.
+# - `update_display_name(...)`, `replace_anthropic_api_key(...)`: P7 settings
+#   updates that touch one column each.
+# - `get_local_db_path()`: returns the live DB path as a string for display
+#   only; never returns or logs the saved API key.
+# - `has_saved_user_with_key()`: cheap EXISTS-style probe used by the
+#   authentication gate to decide whether the user is signed in.
+#
+# Key detail:
+# - All SQL uses parameter placeholders (`?`), never string interpolation, so
+#   user-typed usernames and keys can never inject SQL.
 def insert_user(username: str, anthropic_api_key: str) -> int:
     with DB:
         cur = DB.execute(

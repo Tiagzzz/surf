@@ -21,6 +21,28 @@ Usage::
         # (result["title"], result["body"]) as a toast.
         ...
 """
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — REPLACE-AFTER-VALIDATE API KEY SERVICE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Surf V1 rule: the saved Anthropic API key is overwritten only after the
+# typed replacement key validates against Anthropic. A blank input, a
+# failed validation, a network error, or a SQLite write failure all
+# leave the previously saved key untouched.
+#
+# Important code pieces:
+# - `replace_api_key_after_validation`: the one public function. Returns
+#   a status dict the page renders directly.
+# - `validate_fn` / `persist_fn`: injectable so tests and the preview
+#   sandbox can run without a real Anthropic call or a real SQLite write.
+# - Status copy constants: locked strings the page renders inline or as a
+#   toast for blank, invalid, and save-failure branches.
+#
+# App connection (privacy):
+# The API key is stored locally in plaintext SQLite on this user's
+# computer. This service is the only path that can overwrite that
+# stored key value. The returned status dict never contains the new or
+# old key value — only what the page should display.
 # Validates a replacement key before the saved account key is overwritten.
 from __future__ import annotations
 

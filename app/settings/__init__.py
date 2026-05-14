@@ -22,6 +22,34 @@ Visual conventions use Surf stamped buttons, hard-stamp cards, and the
 12px / 16px spacing rhythm. Both SVGs (logo + gear) come from the shared
 topbar component; nothing in this module touches the asset paths directly.
 """
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — P7 SETTINGS PAGE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Surf V1 Settings has three cards on one screen: change display name,
+# replace the Anthropic API key, and reset all local data. The shared
+# topbar is shown at the top of this page. Every sensitive action is
+# isolated in its own service module so the renderer never touches SQLite
+# or the Anthropic SDK directly.
+#
+# Important code pieces:
+# - Locked copy constants for every visible string (titles, labels,
+#   privacy reminders, dialog copy) so the team can audit wording in one
+#   place.
+# - `is_reset_confirmation_armed`: returns True only when the user types
+#   the exact word `DELETE` (case-sensitive); the destructive button
+#   stays disabled otherwise.
+# - `_render_profile_card` / `_render_api_key_card` / `_render_reset_card`:
+#   one helper per card; each takes injectable services.
+# - `render_settings_page`: the public entry point called by the view.
+#
+# App connection (privacy):
+# The Anthropic API key is stored locally in plaintext SQLite on this
+# user's computer; this is a Surf V1 approved decision. Surf never
+# transmits the key anywhere except to Anthropic (via the shared
+# `call_claude` wrapper) and never displays it back to the user. The
+# Reset card wipes the local SQLite contents, including the saved key,
+# and signs the user out.
 # Renders the Settings cards while keeping sensitive account actions isolated.
 from __future__ import annotations
 
@@ -145,6 +173,19 @@ def load_ai_use_copy() -> str:
 # --------------------------------------------------------------------------- #
 
 
+# --------------------------------------------------------------------------- #
+# PAGE-SCOPED CSS — `_settings_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns the CSS block that styles every P7 surface: cards, inputs,
+# stamped buttons, and the destructive reset button (Accent/Deep red).
+# Scoped to `.st-key-p7_settings_page` plus the explicit dialog button
+# keys (`p7_reset_keep`, `p7_reset_confirm`, `p7_ai_use_close`) which
+# Streamlit renders in a portal outside the page container.
+#
+# Key detail:
+# - The reset confirm button uses the destructive variant (`Accent/Deep`
+#   fill) and is disabled until the user types `DELETE` exactly.
 def _settings_styles() -> str:
     return """
     <style>

@@ -4,6 +4,40 @@ The public ``render_signup_flow`` function receives optional validation/save
 callbacks, renders the split signup screen, and generates one local user setup
 row only after the typed Anthropic API key validates.
 """
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — P1 SIGNUP / LOCAL ACCOUNT SETUP
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# P1 is the first screen a new user sees. The left panel shows the Surf
+# brand and tagline; the right panel is the "Welcome!" card where the
+# user types a display name and an Anthropic API key. We validate the
+# typed key against Anthropic, and only after that validation succeeds
+# do we save the display name + key locally to SQLite.
+#
+# Authentication constraint (load-bearing):
+# P1 is UNAUTHENTICATED. This module MUST NOT import or call the shared
+# authenticated topbar (`app.brain.topbar.render_topbar`) — the Surf
+# test suite explicitly enforces that. The authenticated topbar is only
+# rendered on P2, P3, P6, and P7.
+#
+# Important code pieces:
+# - `render_signup_flow`: the public entry point called by `views/signup.py`.
+#   Accepts injectable `validate_key` / `save_setup` callbacks for tests.
+# - `_save_after_validation`: gating function. Strips inputs, blocks
+#   blanks, validates the key, then persists. Routes to `views/my_classes.py`
+#   on success.
+# - `_render_styles`: injects the page-scoped CSS (Surf colors, stamped
+#   buttons, two-column layout).
+# - `_render_left_panel` / `_render_setup_card`: the two visible halves
+#   of the screen.
+# - Embedded WOFF2 fonts: bundled fonts are inlined as data URIs because
+#   Streamlit does not automatically serve files from `assets/fonts/`.
+#
+# App connection (privacy):
+# The typed Anthropic API key is saved locally in plaintext SQLite on
+# this user's computer. The visible disclaimer copy on the card tells
+# the user that the key is validated with Anthropic, then saved on this
+# computer.
 # Renders signup and saves setup only after a typed Anthropic key validates.
 from __future__ import annotations
 

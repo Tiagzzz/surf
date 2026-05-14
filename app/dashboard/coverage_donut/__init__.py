@@ -6,6 +6,13 @@ uses preview fixtures, percentages invented in the renderer, or the old
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `plotly.graph_objects` builds the Plotly doughnut figure used inside the
+# Streamlit card. `escape` keeps any dynamic empty-state copy from injecting
+# HTML when it lands inside custom card markup.
 from html import escape
 from typing import Any, Mapping
 
@@ -76,6 +83,18 @@ def coverage_empty_copy(summary: Mapping[str, Any]) -> tuple[str, str] | None:
     return None
 
 
+# --------------------------------------------------------------------------- #
+# COVERAGE DOUGHNUT BUILDER AND RENDERER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `build_coverage_donut_figure` produces the Plotly doughnut from the
+# latest-answer summary, or `None` when there are no generated questions
+# yet. `render_coverage_donut` is the keyed Streamlit container that places
+# the chart or the honest empty-state copy plus the latest-answer note.
+#
+# Key detail:
+# - "Latest answer wins" — each generated question contributes one slice
+#   based on its most recent finished answer (mock or practice).
 def build_coverage_donut_figure(summary: Mapping[str, Any]) -> go.Figure | None:
     """Build the latest-answer coverage doughnut or ``None`` if no questions exist."""
     # Build the doughnut from the stored latest-answer buckets only. The renderer

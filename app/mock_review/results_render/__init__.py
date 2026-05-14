@@ -8,6 +8,22 @@ cards and option/rationale rows.
 # Paints saved P5 results without recalculating or rewriting attempts.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Streamlit plus a handful of stdlib helpers, the shared topbar, the
+# read-only attempt queries, the Phase 7 personal-difficulty scorer, and
+# the pure helpers from `rationale_display`. Everything that could mutate
+# the database is excluded — P5 is strictly a read-only review surface.
+#
+# Important code pieces:
+# - `zoneinfo.ZoneInfo`: Python's standard timezone helper, used so the
+#   "finished at" timestamp displays in Swiss local time regardless of
+#   how it was stored.
+# - `score_questions`: imported from `app.ml.personal_difficulty` and
+#   called fresh on every render. The resulting difficulty number is
+#   never written back to SQLite.
 import base64
 import json
 from datetime import datetime, timezone
@@ -37,6 +53,20 @@ from app.mock_review.rationale_display import (
 
 __all__ = ["render_review_mock_page"]
 
+# --------------------------------------------------------------------------- #
+# LOCKED COPY AND DIFFICULTY-EXPLAINER CONTENT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Fixed strings the review page falls back on when an attempt row is
+# missing a label, plus the multi-paragraph explainer the user sees when
+# they expand "Understand your difficulty score". Keeping the copy as
+# module constants lets the test suite assert the exact wording.
+#
+# Important code pieces:
+# - `_DIFFICULTY_EXPLAINER_BODY`: the longer body shown inside the
+#   collapsible explainer card.
+# - `_DIFFICULTY_FEATURE_KEYS`: the difficulty_* columns the renderer
+#   forwards into the scoring view passed to `score_questions(...)`.
 _TYPE_UNAVAILABLE_COPY = "Type unavailable"
 _RATIONALE_UNAVAILABLE_COPY = "Rationale unavailable."
 _MISSED_LOCKED_COPY = "MISSED"
@@ -113,6 +143,26 @@ def _font_face_block() -> str:
     """
 
 
+# --------------------------------------------------------------------------- #
+# PAGE CSS BUILDER — `_styles`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one big block of scoped CSS as a Python string. Injected via
+# `st.markdown(_styles(), unsafe_allow_html=True)` rather than `st.html(...)`
+# because large style payloads have been observed to silently drop when
+# passed to `st.html`. The CSS owns: hero band, summary card grid, the
+# Phase 7 personal-difficulty flag silhouette pinned to each card's
+# top-right edge (V-notch via `clip-path`, tier color via the
+# `--flag-color` custom property), the per-option correct/wrong/missed
+# styling, the rationale feedback row, and the two action buttons.
+#
+# Important code pieces:
+# - `.surf-personal-difficulty-flag` and its `::before` / `::after`
+#   pseudo-elements: paint the colored flag and a 4px offset shadow
+#   silhouette without `filter: drop-shadow` (which has been unreliable
+#   inside Streamlit's wrapper hierarchy).
+# - `.surf-personal-difficulty-flag--ok` / `--warn` / `--risk`: tier
+#   modifier classes corresponding to the low/medium/high score bands.
 def _styles() -> str:
     return (
         "<style>\n"
@@ -1011,6 +1061,17 @@ def _render_actions(*, class_id: int | None) -> None:
                 st.switch_page("views/dashboard.py")
 
 
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `render_review_mock_page`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The one function `views/review_mock_exam.py` calls. It loads the saved
+# attempt summary plus the per-question review rows, recovers gracefully
+# when either is missing, renders the shared topbar with the class
+# breadcrumb segment, draws the hero band and four-stat summary card, and
+# then loops every review row through `_render_review_row` with the
+# freshly-computed difficulty flag score. No write happens here — the
+# function is strictly read-only.
 def render_review_mock_page(
     *,
     user: dict,

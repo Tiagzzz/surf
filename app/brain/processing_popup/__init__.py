@@ -1,6 +1,26 @@
 """Shared Surf upload-processing popup."""
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS, ASSET PATH, AND POPUP STATE TYPE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module draws the modal-looking overlay that covers the page while
+# Surf processes an uploaded lecture (the "Your file is being processed"
+# card with the looping surfer animation). It is just HTML + CSS; it does
+# not start, observe, or stop the ingestion — that is the page's job.
+#
+# Important code pieces:
+# - `base64`: turns the MP4 bytes into a text-safe string so the video
+#   can be embedded directly in the page via a `data:` URL.
+# - `lru_cache(maxsize=1)`: remembers the encoded video so the file is
+#   read off disk only once per process.
+# - `escape`: makes any title or subtitle safe to drop into HTML.
+# - `_REPO_ROOT` / `_VIDEO_PATH`: locate the surfer animation on disk
+#   relative to this file.
+# - `PopupState`: a `Literal` type — the popup only ever has two states,
+#   `"processing"` (red dot, still working) or `"done"` (green dot,
+#   refresh imminent).
 import base64
 from functools import lru_cache
 from html import escape
@@ -13,12 +33,35 @@ _VIDEO_PATH = _REPO_ROOT / "assets" / "media" / "surfer-processing-loop.mp4"
 PopupState = Literal["processing", "done"]
 
 
+# --------------------------------------------------------------------------- #
+# _VIDEO_DATA_URI — READ AND ENCODE THE SURFER ANIMATION ONCE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Reads the MP4 once and returns a `data:video/mp4;base64,...` URL that
+# can be embedded inside the popup HTML. The `@lru_cache` decorator
+# caches the result so subsequent calls do not re-read the file.
 @lru_cache(maxsize=1)
 def _video_data_uri() -> str:
     encoded = base64.b64encode(_VIDEO_PATH.read_bytes()).decode("ascii")
     return f"data:video/mp4;base64,{encoded}"
 
 
+# --------------------------------------------------------------------------- #
+# BUILD_PROCESSING_POPUP_HTML — TWO-STATE OVERLAY MARKUP + CSS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Returns one big string of CSS + HTML for the modal overlay. Picks the
+# title, subtitle, and status text based on `state`. The CSS lives in the
+# returned string so the popup is fully self-contained — the page only
+# has to call `placeholder.markdown(html, unsafe_allow_html=True)` once.
+#
+# Important code pieces:
+# - `if state == "processing": ...`: branch picks the in-progress copy.
+# - `elif state == "done": ...`: branch picks the success copy.
+# - `else: raise ValueError(...)`: defensive guard so a typo in the
+#   caller becomes a clear error instead of a silent blank popup.
+# - `escape(..., quote=True)`: escapes both HTML and attribute-quote
+#   characters since the data URI is dropped into a `src="..."` slot.
 def build_processing_popup_html(
     *,
     state: PopupState,
@@ -148,6 +191,14 @@ def build_processing_popup_html(
 """
 
 
+# --------------------------------------------------------------------------- #
+# SHOW_PROCESSING_POPUP — RENDER INTO A STREAMLIT PLACEHOLDER
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Pages create an `st.empty()` placeholder and pass it here so the popup
+# can be swapped from "processing" to "done" simply by calling this
+# helper again with a new state. `hasattr(placeholder, "markdown")` is a
+# small compatibility hatch so tests can pass a fake placeholder.
 def show_processing_popup(
     placeholder: Any,
     *,

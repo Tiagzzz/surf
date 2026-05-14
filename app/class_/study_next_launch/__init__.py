@@ -6,6 +6,21 @@ state only and creates no ``attempts`` row.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND PRACTICE-LAUNCH CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Study Next surfaces the weakest learning objective for a class and
+# lets the student practice it. The launch step mirrors the standard
+# mock launch contract but scopes the frozen questions to one LO. Like
+# the other launchers, no DB row is created here — P4 owns the final
+# write.
+#
+# Important code pieces:
+# - `PRACTICE_KIND = "practice"`: discriminator stored alongside the
+#   frozen questions so P4 can distinguish practice from a mock attempt.
+# - `SELECTED_LEARNING_OBJECTIVE_ID_KEY`: extra session-state key the
+#   mock launch does not need; lets P4 highlight the LO being practiced.
 from collections.abc import MutableMapping
 from typing import Any
 
@@ -54,6 +69,15 @@ def _write_launch_state(
     ]
 
 
+# --------------------------------------------------------------------------- #
+# LAUNCH_STUDY_NEXT_PRACTICE — FREEZE ONE LO'S QUESTIONS FOR PRACTICE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Pulls every ready question tagged with the given learning objective,
+# projects them into the same payload shape mock attempts use, and
+# writes them into session state with `mock_kind == "practice"`. Raises
+# a clear error when the LO has no ready questions so the caller can
+# show an honest empty-state message.
 def launch_study_next_practice(
     *,
     class_id: int,

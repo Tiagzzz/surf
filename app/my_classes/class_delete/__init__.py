@@ -11,6 +11,28 @@ truth.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — P2 CONFIRMATION-GATED CLASS DELETE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module exports the locked copy strings for the destructive "Delete
+# this class?" dialog plus the service function the renderer calls after
+# the user confirms. The actual SQLite delete only runs when the
+# `confirmed=True` flag is passed in, so a stray click on the trash
+# affordance can never remove a class on its own.
+#
+# Important code pieces:
+# - `DIALOG_TITLE` / `DIALOG_BODY_TEMPLATE` / `KEEP_LABEL` / `DELETE_LABEL`:
+#   exact strings the P2 dialog renders (also asserted by tests).
+# - `format_dialog_body`: interpolates the class name into the body copy.
+# - `delete_class_after_confirmation`: orchestrates the gated delete and
+#   returns a renderer-friendly status dict.
+#
+# App connection:
+# The P2 "DELETE CLASS" button opens the destructive `st.dialog`, which
+# calls this service when the user presses the primary CTA. A delete
+# cascades through SQLite foreign keys to remove lectures, questions,
+# attempts, and answers for that class.
 from typing import Any, Callable
 
 from app.db.queries_classes import delete_class_for_user
@@ -51,6 +73,17 @@ DELETE_TRIGGER_LABEL = "DELETE CLASS"
 DELETE_SUCCESS_TOAST = "Class deleted."
 
 
+# --------------------------------------------------------------------------- #
+# DIALOG BODY BUILDER + CONFIRMED-DELETE SERVICE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `format_dialog_body` simply interpolates the class name into the locked
+# warning copy. `delete_class_after_confirmation` is the safety net: it
+# refuses to call the SQLite helper unless `confirmed` is exactly `True`.
+#
+# Key detail:
+# - `delete_fn` is injectable so tests and preview sandboxes can swap in
+#   a fake without touching the live local DB.
 def format_dialog_body(class_name: str) -> str:
     """Render the locked destructive body with the class name interpolated."""
     return DIALOG_BODY_TEMPLATE.format(class_name=class_name)

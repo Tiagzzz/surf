@@ -6,6 +6,31 @@ be saved to the database and rendered for the student.
 """
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — FACTSHEET CLEANER (STANDARD ~10-LINE CLAUDE PATTERN)
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This file is Surf's canonical example of the "~10-line Claude call"
+# pattern used everywhere in the codebase: a sibling `.md` file holds the
+# system prompt, and a small Python wrapper hands raw user input to the
+# shared `call_claude` helper and asks for a JSON response. Prompt
+# wording lives in markdown so editing the prompt does not touch wiring,
+# tests, or imports.
+#
+# Important code pieces:
+# - `_SYSTEM_PROMPT_PATH`: built via
+#   `Path(__file__).with_name("<script>_system_prompt.md")` so the prompt
+#   file always sits next to this script.
+# - `call_claude(..., expect_json=True)`: shared Anthropic wrapper. Every
+#   Claude call in Surf goes through this, never through the SDK directly.
+# - `api_key`: read by the caller from the user's locally saved key in
+#   SQLite. We never reach for environment variables here.
+#
+# App connection:
+# Invoked by `create_class_from_factsheet` after the PDF has been
+# converted to markdown. The JSON returned here is saved to SQLite as the
+# class's structured factsheet, and `factsheet_renderer` later turns it
+# into the student-facing markdown.
 from pathlib import Path
 from typing import Any
 

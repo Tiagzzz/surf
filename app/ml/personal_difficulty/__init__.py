@@ -16,9 +16,51 @@ receive rule scores instead.
 # Pure scoring core for Phase 7 personal difficulty.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module deliberately keeps its imports tiny. It must stay pure Python
+# with no Streamlit, no DB connection, no Anthropic client, and no network
+# call. scikit-learn is imported lazily inside the model helpers so this file
+# can still be imported in environments that do not have it installed.
+#
+# Important code pieces:
+# - `collections.abc` (`Iterable`, `Mapping`, `Sequence`): generic container
+#   types used for read-only function arguments — they say "I will iterate /
+#   look up keys / read by index" without forcing a concrete `list`/`dict`.
+# - `dataclasses.dataclass`: decorator used below to build the small frozen
+#   `ScoreResult` record.
+# - `typing.Any`: a type hint meaning "any value is allowed".
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+
+# --------------------------------------------------------------------------- #
+# READINESS THRESHOLDS AND ML CAPS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Phase 7's "honest ML" promise is enforced here. The rule branch always runs
+# first; the optional ML blend is only allowed to influence the score once
+# the student has enough completed answers spread across both correct AND
+# wrong/skipped outcomes, and only when the trained tree clears a quality
+# bar. These four numbers encode that contract so a single read of this
+# block makes the gate obvious.
+#
+# Important code pieces:
+# - `MIN_EXAMPLES_FOR_ML`: total completed answers required before any ML
+#   path is even considered.
+# - `MIN_EXAMPLES_PER_CLASS`: minimum count in each of the two outcome
+#   classes (correct vs wrong/skipped) so the model is not all-one-class.
+# - `MODEL_RANDOM_STATE`: fixed seed so the small tree is reproducible
+#   between sessions.
+# - `MAX_ML_RELIABILITY`: hard ceiling on how much the ML branch is allowed
+#   to influence the final blended score.
+#
+# App connection:
+# These thresholds are why a brand-new student or a class with no wrong
+# answers still gets a transparent rule-based score on P5 difficulty flags
+# rather than a fake ML number.
 
 # Minimum total completed answer examples before the ML branch can run.
 MIN_EXAMPLES_FOR_ML: int = 30
@@ -27,6 +69,28 @@ MIN_EXAMPLES_PER_CLASS: int = 5
 MODEL_RANDOM_STATE: int = 7
 MAX_ML_RELIABILITY: float = 0.85
 
+# --------------------------------------------------------------------------- #
+# RULE-BASED RISK CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# These tables convert a question's metadata into a 0..1 "risk" number that
+# the rule formula then combines and scales to the locked 0..100 range. Each
+# constant maps one input dimension (cognitive type, weighted feature,
+# difficulty metadata field) to a numeric contribution.
+#
+# Important code pieces:
+# - `QUESTION_TYPE_RISK`: per question_type slug risk weight. Knowledge
+#   sits at the gentle end (0.00) and Evaluation at the hard end (1.00).
+# - `RULE_WEIGHTS`: how much each metadata signal contributes to the final
+#   weighted sum. Weights add to 1.0 so the scaled score lands in 0..100.
+# - `DIFFICULTY_METADATA_KEYS`: pairs the rule-formula risk name with the
+#   exact stored difficulty_* field name on a question row.
+# - `STRUCTURED_FEATURE_NAMES`: ordered list of feature columns the
+#   scikit-learn tree expects when fitting or predicting.
+# - `FALLBACK_LONG_TEXT_BASELINE` and `FALLBACK_LONG_TEXT_SPAN`: numbers
+#   used when difficulty metadata is missing so the fallback rule path can
+#   still produce an honest score from the question's stem length.
+#
 # Research-calibrated Phase 7.1 rule formula. Values are normalized to 0..1
 # before the weighted sum is scaled to Surf's 0..100 wrong-risk range.
 QUESTION_TYPE_RISK: dict[str, float] = {
@@ -70,6 +134,17 @@ FALLBACK_LONG_TEXT_BASELINE: int = 80
 FALLBACK_LONG_TEXT_SPAN: int = 320
 
 
+# --------------------------------------------------------------------------- #
+# SCORE RESULT RECORD
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Each scored question returns one small immutable record. The `source` field
+# is what callers display when explaining the score: `"rule"` for the honest
+# default and `"ml"` only when the ML reliability path actually engaged.
+#
+# Key detail:
+# - `@dataclass(frozen=True)`: decorator that turns a class into a small
+#   value object whose fields cannot be reassigned after creation.
 @dataclass(frozen=True)
 class ScoreResult:
     """Result of scoring a single question."""
@@ -322,6 +397,19 @@ def _append_note(existing: str, addition: str) -> str:
     return f"{existing};{addition}"
 
 
+# --------------------------------------------------------------------------- #
+# RULE-BASED SCORING — `score_rule_based`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The honest default Phase 7 path. Reads the question's locked metadata,
+# turns each piece into a 0..1 risk, weights them per `RULE_WEIGHTS`, scales
+# to 0..100, and then nudges the result up or down by the user's history on
+# that exact question. Missing or malformed inputs return a safe 0 with an
+# explanatory note instead of crashing.
+#
+# App connection:
+# This is the function that produces the difficulty number shown on the P5
+# review card flag when ML is not engaged.
 def score_rule_based(
     question: Mapping[str, Any] | None,
     history: Sequence[Mapping[str, Any]] | None = None,
@@ -575,6 +663,20 @@ def _history_by_question_id(
     return grouped
 
 
+# --------------------------------------------------------------------------- #
+# PUBLIC ENTRY POINT — `score_questions`
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The function callers actually use. It always returns one rule-based score
+# per question. If — and only if — there is enough labelled history to train
+# the tree AND the trained tree is reliable enough, it blends a capped ML
+# contribution on top. Every failure path falls back to rule scoring with a
+# transparent `note` explaining why (e.g. `ml_fit_failed`, `ml_unreliable`,
+# `ml_predict_failed`).
+#
+# App connection:
+# Used by `app/mock_review/results_render/` to compute the P5 difficulty
+# flag scores fresh on every render — nothing is persisted to SQLite.
 def score_questions(
     questions: Sequence[Mapping[str, Any]],
     examples: Sequence[Mapping[str, Any]] | None = None,

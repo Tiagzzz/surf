@@ -15,6 +15,24 @@ ranking; the actual session-state launch lives in
 # Custom Mock ranking. Separate from standard mock and Study Next.
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS AND RANKING CONSTANTS
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This module is the ranking core behind the red `CUSTOM MOCK >` button.
+# Given a class id it pulls every ready question, pulls the student's
+# completed answer examples, asks `app.ml.personal_difficulty` for a
+# wrong-risk score per question, and returns the top N in descending
+# score order. It never touches Streamlit, Claude, or the network —
+# scoring is pure ranking.
+#
+# Important code pieces:
+# - `Mapping[str, Any]`: read-only dict-like input type (lets callers
+#   pass DB row objects or plain dicts).
+# - `DEFAULT_CUSTOM_MOCK_LIMIT = 10`: cap so Custom Mock is always one
+#   ~10-question attempt.
+# - `_DIFFICULTY_FEATURE_KEYS`: the column names that carry the per-
+#   question difficulty features used by the scoring core.
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -41,6 +59,21 @@ __all__ = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# INTERNAL HELPERS — TURN DB ROWS INTO PLAIN-DICT VIEWS FOR SCORING
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The scoring core only consumes plain Python dicts, so these private
+# helpers convert SQLite rows (which can store options/correct indices
+# as JSON strings) into the dict shape the scorer expects.
+#
+# Important code pieces:
+# - `_decode_json_list`: accepts a real list, a JSON string, or junk and
+#   returns a list (defaulting to empty on error).
+# - `_question_id`: tolerates rows that label the id as either
+#   `question_id` or `id`.
+# - `_scoring_view` / `_example_view`: build the inference and example
+#   shapes the personal-difficulty scorer needs.
 def _decode_json_list(value: object) -> list[Any]:
     if isinstance(value, list):
         return value
@@ -89,6 +122,22 @@ def _example_view(row: Mapping[str, Any]) -> dict[str, Any]:
     return view
 
 
+# --------------------------------------------------------------------------- #
+# SELECT_CUSTOM_MOCK_QUESTIONS — PUBLIC ENTRY POINT FOR THE RANKING
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# The function the Custom Mock launch helper calls. It runs the scorer,
+# attaches the score + source ("rule" or "ml") onto a shallow copy of
+# each ready-question row, sorts by score descending (ties broken by
+# id ascending for deterministic output), and returns the top `limit`.
+#
+# Important code pieces:
+# - The keyword-only `ready_questions_fn`, `examples_fn`,
+#   `score_questions_fn` parameters are injection seams for tests; the
+#   defaults come from the real DB / ML modules.
+# - The fallback to `score_rule_based(...)` when the result length does
+#   not match the input length is defensive — it guarantees Custom Mock
+#   still launches even if the scorer misbehaves.
 def select_custom_mock_questions(
     class_id: int,
     limit: int = DEFAULT_CUSTOM_MOCK_LIMIT,

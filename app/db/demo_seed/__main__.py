@@ -9,11 +9,28 @@ Usage:
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# IMPORTS — DEMO-SEED CLI ENTRY POINT
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# This file is what runs when you type `python -m app.db.demo_seed`. It
+# parses command-line flags, then hands all real database work to the
+# seeding helper.
 import argparse
 import json
 import sys
 
 from app.db.demo_seed import seed_surf_demo_class
+
+
+# --------------------------------------------------------------------------- #
+# CLI FLAG BUILDER AND MAIN
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# `_build_parser` declares the two flags: `--seed-surf-demo` to run the
+# seeder, and `--replace` to refresh an existing marked demo graph. `main`
+# parses the flags, calls the seed function, prints the result as JSON, and
+# returns the exit code.
 
 
 def _build_parser() -> argparse.ArgumentParser:

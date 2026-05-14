@@ -15,6 +15,21 @@ Usage::
     else:
         st.error(result.get("message") or result.get("body"))
 """
+# --------------------------------------------------------------------------- #
+# MODULE OVERVIEW — DISPLAY NAME SAVE SERVICE
+# --------------------------------------------------------------------------- #
+# Simple explanation:
+# Thin orchestrator around the user-row update helper. The Settings page
+# never touches the queries layer directly — it calls this service and
+# renders the returned status dict.
+#
+# Important code pieces:
+# - `save_display_name`: the one public function. Trims the input,
+#   rejects blank values, calls `persist_fn`, and returns a status dict.
+# - `persist_fn`: injectable so tests and previews can run without a
+#   live SQLite write.
+# - Status copy constants: locked error strings the page renders inline
+#   or as a toast.
 # Saves a non-blank display name through the user query layer.
 from __future__ import annotations
 
